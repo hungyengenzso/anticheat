@@ -38,6 +38,12 @@
         .mobile-menu.open {
             max-height: 500px;
         }
+        .pending-result {
+            background-color: #fef9c3;
+        }
+        .graded-result {
+            background-color: #dcfce7;
+        }
     </style>
 </head>
 <body>
@@ -174,12 +180,13 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đề thi</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày thi</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tự động chấm</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
                         </thead>
                         <tbody id="results-list" class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td colspan="5" class="px-6 py-4 text-center text-gray-500">Đang tải bài thi...</td>
+                                <td colspan="6" class="px-6 py-4 text-center text-gray-500">Đang tải bài thi...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -229,6 +236,8 @@
                 <p><strong>Thí sinh:</strong> <span id="result-student-name"></span></p>
                 <p><strong>Đề thi:</strong> <span id="result-exam-name"></span></p>
                 <p><strong>Ngày thi:</strong> <span id="result-exam-date"></span></p>
+                <p><strong>Thời gian làm bài:</strong> <span id="result-exam-duration"></span> giây</p>
+                <p><strong>Số lần vi phạm:</strong> <span id="result-violations"></span></p>
                 <p><strong>Điểm tự động:</strong> <span id="result-auto-score"></span></p>
             </div>
             
@@ -282,7 +291,7 @@
             apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
             authDomain: "anticheat-749d6.firebaseapp.com",
             projectId: "anticheat-749d6",
-            storageBucket: "anticheat-749d6.firebasestorage.app",
+            storageBucket: "anticheat-749d6.appspot.com",
             messagingSenderId: "417797975285",
             appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
             measurementId: "G-4EDKFS0CY6"
@@ -473,16 +482,15 @@
 
         // Load results
         function loadResults() {
-            resultsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Đang tải bài thi...</td></tr>';
+            resultsList.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Đang tải bài thi...</td></tr>';
             
             db.collection('exam_results')
                 .where('teacherId', '==', currentUser.uid)
-                .where('status', '==', 'pending')
                 .orderBy('submittedAt', 'desc')
                 .get()
                 .then(querySnapshot => {
                     if (querySnapshot.empty) {
-                        resultsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Không có bài thi nào cần chấm</td></tr>';
+                        resultsList.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">Không có bài thi nào</td></tr>';
                         return;
                     }
                     
@@ -503,6 +511,8 @@
                                         const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
                                         
                                         const row = document.createElement('tr');
+                                        row.className = result.status === 'pending' ? 'pending-result' : 'graded-result';
+                                        
                                         row.innerHTML = `
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="font-medium text-gray-900">${studentName}</div>
@@ -514,27 +524,40 @@
                                                 <div class="text-gray-900">${result.submittedAt.toDate().toLocaleString()}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${result.score}/${result.totalQuestions}</div>
+                                                <div class="text-gray-900">${result.score || 0}/${result.totalQuestions || 0}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-gray-900">${result.status === 'pending' ? 'Chờ chấm' : 'Đã chấm'}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button class="text-indigo-600 hover:text-indigo-900 grade-exam" data-id="${resultId}">Chấm bài</button>
+                                                ${result.status === 'pending' ? 
+                                                    `<button class="text-indigo-600 hover:text-indigo-900 grade-exam" data-id="${resultId}">Chấm bài</button>` : 
+                                                    `<button class="text-indigo-600 hover:text-indigo-900 view-result" data-id="${resultId}">Xem</button>`
+                                                }
                                             </td>
                                         `;
                                         
                                         resultsList.appendChild(row);
                                         
                                         // Add event listener
-                                        row.querySelector('.grade-exam').addEventListener('click', e => {
-                                            const resultId = e.target.getAttribute('data-id');
-                                            gradeExam(resultId);
-                                        });
+                                        if (result.status === 'pending') {
+                                            row.querySelector('.grade-exam').addEventListener('click', e => {
+                                                const resultId = e.target.getAttribute('data-id');
+                                                gradeExam(resultId);
+                                            });
+                                        } else {
+                                            row.querySelector('.view-result').addEventListener('click', e => {
+                                                const resultId = e.target.getAttribute('data-id');
+                                                viewExamResult(resultId);
+                                            });
+                                        }
                                     });
                             });
                     });
                 })
                 .catch(error => {
                     console.error('Error loading results:', error);
-                    resultsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải bài thi</td></tr>';
+                    resultsList.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải bài thi</td></tr>';
                 });
         }
 
@@ -622,28 +645,12 @@
                 });
         }
 
-        // Delete exam
-        function deleteExam(examId) {
-            db.collection('exams').doc(examId).delete()
-                .then(() => {
-                    alert('Đã xóa đề thi thành công');
-                    loadExams();
-                    loadStatistics();
-                })
-                .catch(error => {
-                    console.error('Error deleting exam:', error);
-                    alert('Có lỗi xảy ra khi xóa đề thi');
-                });
-        }
-
-        // Grade exam
-        function gradeExam(resultId) {
-            currentResultId = resultId;
-            
+        // View exam result
+        function viewExamResult(resultId) {
             db.collection('exam_results').doc(resultId).get()
                 .then(doc => {
                     if (!doc.exists) {
-                        alert('Bài thi không tồn tại');
+                        alert('Kết quả bài thi không tồn tại');
                         return;
                     }
                     
@@ -666,13 +673,15 @@
                                     const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
                                     
                                     // Update modal info
-                                    document.getElementById('result-modal-title').textContent = `Chấm bài thi: ${currentExamData.name}`;
+                                    document.getElementById('result-modal-title').textContent = `Kết quả bài thi: ${currentExamData.name}`;
                                     document.getElementById('result-student-name').textContent = studentName;
                                     document.getElementById('result-exam-name').textContent = currentExamData.name;
                                     document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
-                                    document.getElementById('result-auto-score').textContent = `${result.score}/${result.totalQuestions}`;
-                                    document.getElementById('result-total-score').textContent = result.score;
-                                    document.getElementById('result-max-score').textContent = result.totalQuestions;
+                                    document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
+                                    document.getElementById('result-violations').textContent = result.violations || 0;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${result.totalQuestions || 0}`;
+                                    document.getElementById('result-total-score').textContent = result.finalScore || result.score || 0;
+                                    document.getElementById('result-max-score').textContent = result.totalQuestions || 0;
                                     
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
@@ -748,6 +757,7 @@
                                                 </div>
                                             `;
                                         } else if (question.type === 'essay') {
+                                            const manualScore = result.answers[index]?.manualScore || 0;
                                             questionHtml = `
                                                 <div class="mb-2">
                                                     <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
@@ -757,7 +767,156 @@
                                                 </div>
                                                 <div class="flex items-center mb-2">
                                                     <label class="mr-3">Điểm:</label>
-                                                    <input type="number" min="0" max="1" step="0.5" value="${isCorrect ? '1' : '0'}" 
+                                                    <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
+                                                        class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}" disabled>
+                                                    <span class="ml-2">/ 1</span>
+                                                </div>
+                                            `;
+                                        }
+                                        
+                                        questionElement.innerHTML = questionHtml;
+                                        resultQuestionsContainer.appendChild(questionElement);
+                                    });
+                                    
+                                    // Disable save button for viewing
+                                    saveResultBtn.disabled = true;
+                                    
+                                    // Show modal
+                                    resultModal.classList.remove('hidden');
+                                });
+                        });
+                })
+                .catch(error => {
+                    console.error('Error loading exam result:', error);
+                    alert('Có lỗi xảy ra khi tải kết quả bài thi');
+                });
+        }
+
+        // Grade exam
+        function gradeExam(resultId) {
+            currentResultId = resultId;
+            
+            db.collection('exam_results').doc(resultId).get()
+                .then(doc => {
+                    if (!doc.exists) {
+                        alert('Bài thi không tồn tại');
+                        return;
+                    }
+                    
+                    const result = doc.data();
+                    currentExamResult = result;
+                    
+                    // Get exam data
+                    db.collection('exams').doc(result.examId).get()
+                        .then(examDoc => {
+                            if (!examDoc.exists) {
+                                alert('Đề thi không tồn tại');
+                                return;
+                            }
+                            
+                            currentExamData = examDoc.data();
+                            
+                            // Get student name
+                            db.collection('users').doc(result.studentId).get()
+                                .then(studentDoc => {
+                                    const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
+                                    
+                                    // Update modal info
+                                    document.getElementById('result-modal-title').textContent = `Chấm bài thi: ${currentExamData.name}`;
+                                    document.getElementById('result-student-name').textContent = studentName;
+                                    document.getElementById('result-exam-name').textContent = currentExamData.name;
+                                    document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
+                                    document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
+                                    document.getElementById('result-violations').textContent = result.violations || 0;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${result.totalQuestions || 0}`;
+                                    document.getElementById('result-total-score').textContent = result.score || 0;
+                                    document.getElementById('result-max-score').textContent = result.totalQuestions || 0;
+                                    
+                                    // Load questions
+                                    resultQuestionsContainer.innerHTML = '';
+                                    
+                                    currentExamData.questions.forEach((question, index) => {
+                                        const questionElement = document.createElement('div');
+                                        questionElement.className = 'question-block bg-gray-50 p-4 rounded-lg border border-gray-200';
+                                        
+                                        const studentAnswer = result.answers[index]?.answer || '';
+                                        const isCorrect = checkAnswerCorrect(question, studentAnswer);
+                                        
+                                        if (isCorrect) {
+                                            questionElement.classList.add('correct-answer');
+                                        }
+                                        
+                                        let questionHtml = '';
+                                        
+                                        if (question.type === 'mcq') {
+                                            questionHtml = `
+                                                <div class="flex justify-between items-center mb-2">
+                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
+                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
+                                                </div>
+                                                <div class="space-y-2 mb-3">
+                                                    ${question.options.map((option, i) => `
+                                                        <div class="flex items-center">
+                                                            <input type="radio" name="q${index}" value="${i}" class="mr-2" 
+                                                                ${studentAnswer === i.toString() ? 'checked' : ''} disabled>
+                                                            <span class="${question.correctOption === i.toString() ? 'font-bold text-green-600' : ''}">${option}</span>
+                                                            ${question.correctOption === i.toString() ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                                <div class="text-sm text-gray-600">
+                                                    <strong>Trả lời của thí sinh:</strong> ${getSelectedOption(question.options, studentAnswer)}
+                                                </div>
+                                            `;
+                                        } else if (question.type === 'tf') {
+                                            questionHtml = `
+                                                <div class="flex justify-between items-center mb-2">
+                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
+                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
+                                                </div>
+                                                <div class="space-y-2 mb-3">
+                                                    <div class="flex items-center">
+                                                        <input type="radio" name="q${index}" value="true" class="mr-2" 
+                                                            ${studentAnswer === 'true' ? 'checked' : ''} disabled>
+                                                        <span class="${question.correctAnswer === 'true' ? 'font-bold text-green-600' : ''}">Đúng</span>
+                                                        ${question.correctAnswer === 'true' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <input type="radio" name="q${index}" value="false" class="mr-2" 
+                                                            ${studentAnswer === 'false' ? 'checked' : ''} disabled>
+                                                        <span class="${question.correctAnswer === 'false' ? 'font-bold text-green-600' : ''}">Sai</span>
+                                                        ${question.correctAnswer === 'false' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                    </div>
+                                                </div>
+                                                <div class="text-sm text-gray-600">
+                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer === 'true' ? 'Đúng' : 'Sai'}
+                                                </div>
+                                            `;
+                                        } else if (question.type === 'sa') {
+                                            questionHtml = `
+                                                <div class="flex justify-between items-center mb-2">
+                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
+                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
+                                                </div>
+                                                <div class="mb-3">
+                                                    <p class="font-bold text-green-600">Đáp án đúng: ${question.correctAnswer}</p>
+                                                </div>
+                                                <div class="text-sm text-gray-600">
+                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer || 'Không trả lời'}
+                                                </div>
+                                            `;
+                                        } else if (question.type === 'essay') {
+                                            const manualScore = result.answers[index]?.manualScore || 0;
+                                            questionHtml = `
+                                                <div class="mb-2">
+                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
+                                                </div>
+                                                <div class="bg-white p-3 border border-gray-300 rounded mb-3">
+                                                    <p class="whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
+                                                </div>
+                                                <div class="flex items-center mb-2">
+                                                    <label class="mr-3">Điểm:</label>
+                                                    <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
                                                         class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}">
                                                     <span class="ml-2">/ 1</span>
                                                 </div>
@@ -767,6 +926,9 @@
                                         questionElement.innerHTML = questionHtml;
                                         resultQuestionsContainer.appendChild(questionElement);
                                     });
+                                    
+                                    // Enable save button for grading
+                                    saveResultBtn.disabled = false;
                                     
                                     // Show modal
                                     resultModal.classList.remove('hidden');
@@ -800,7 +962,8 @@
                 'tab_switch': 'Chuyển tab trình duyệt',
                 'camera_blocked': 'Không mở camera',
                 'multiple_faces': 'Nhiều người trong camera',
-                'no_face': 'Không có người trong camera'
+                'no_face': 'Không có người trong camera',
+                'audio_detected': 'Phát hiện tiếng nói'
             };
             return types[type] || type;
         }
@@ -870,18 +1033,29 @@
 
         // Save exam result
         function saveExamResult() {
-            let totalScore = parseInt(currentExamResult.score);
+            let totalScore = parseInt(currentExamResult.score) || 0;
             const scoreInputs = document.querySelectorAll('.score-input');
+            const answers = [...currentExamResult.answers];
             
             // Calculate total score (add manual scores for essay questions)
             scoreInputs.forEach(input => {
+                const index = parseInt(input.getAttribute('data-index'));
                 const score = parseFloat(input.value) || 0;
-                totalScore += score;
+                
+                // Update manual score for essay questions
+                if (currentExamData.questions[index].type === 'essay') {
+                    answers[index] = {
+                        ...answers[index],
+                        manualScore: score
+                    };
+                    totalScore += score;
+                }
             });
             
             // Update result in Firestore
             db.collection('exam_results').doc(currentResultId).update({
                 status: 'graded',
+                answers: answers,
                 finalScore: totalScore,
                 gradedAt: firebase.firestore.FieldValue.serverTimestamp()
             })
@@ -895,6 +1069,20 @@
                 console.error('Error saving exam result:', error);
                 alert('Có lỗi xảy ra khi lưu kết quả');
             });
+        }
+
+        // Delete exam
+        function deleteExam(examId) {
+            db.collection('exams').doc(examId).delete()
+                .then(() => {
+                    alert('Đã xóa đề thi thành công');
+                    loadExams();
+                    loadStatistics();
+                })
+                .catch(error => {
+                    console.error('Error deleting exam:', error);
+                    alert('Có lỗi xảy ra khi xóa đề thi');
+                });
         }
 
         // Event listeners for modals
