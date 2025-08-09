@@ -102,9 +102,68 @@
             display: flex;
             align-items: center;
         }
+        .active-menu-item {
+            background-color: #7c3aed;
+            color: white;
+            border-radius: 8px;
+        }
+        .mobile-menu {
+            transition: all 0.3s ease;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .mobile-menu.open {
+            max-height: 500px;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-gray-100">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="home.html" class="flex items-center space-x-2">
+                        <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
+                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
+                    <a href="home.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="logout-link">Đăng xuất</a>
+                </div>
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-button" class="p-2 focus:outline-none">
+                        <i class="fas fa-bars text-gray-600 text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
+                <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
+                    <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-login-link">Đăng nhập</a>
+                    <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-logout-link">Đăng xuất</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
     <!-- Camera Preview -->
     <div id="video-container">
         <video id="video-preview" autoplay muted playsinline></video>
@@ -155,7 +214,7 @@
                     <i class="fas fa-stop mr-2"></i>Dừng quét
                 </button>
             </div>
-            <button id="start-exam-btn" class="mt-6 bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition hidden">
+            <button id="start-exam-btn" class="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition hidden">
                 <i class="fas fa-play mr-2"></i>Bắt đầu làm bài
             </button>
         </div>
@@ -220,7 +279,7 @@
             apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
             authDomain: "anticheat-749d6.firebaseapp.com",
             projectId: "anticheat-749d6",
-            storageBucket: "anticheat-749d6.firebasestorage.app",
+            storageBucket: "anticheat-749d6.appspot.com",
             messagingSenderId: "417797975285",
             appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
             measurementId: "G-4EDKFS0CY6"
@@ -257,6 +316,16 @@
         const videoContainer = document.getElementById('video-container');
         const videoPreview = document.getElementById('video-preview');
         const audioIndicator = document.getElementById('audio-indicator');
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const loginLink = document.getElementById('login-link');
+        const registerLink = document.getElementById('register-link');
+        const examManagementLink = document.getElementById('exam-management-link');
+        const logoutLink = document.getElementById('logout-link');
+        const mobileLoginLink = document.getElementById('mobile-login-link');
+        const mobileRegisterLink = document.getElementById('mobile-register-link');
+        const mobileExamManagementLink = document.getElementById('mobile-exam-management-link');
+        const mobileLogoutLink = document.getElementById('mobile-logout-link');
 
         // Variables
         let currentExam = null;
@@ -286,7 +355,14 @@
         auth.onAuthStateChanged(user => {
             if (!user) {
                 window.location.href = 'login.html';
+            } else {
+                updateMenuForLoggedInUser();
             }
+        });
+
+        // Mobile menu toggle
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
         });
 
         // Event listeners
@@ -297,6 +373,8 @@
         exitExamBtn.addEventListener('click', exitExam);
         enterFullscreenBtn.addEventListener('click', enterFullscreen);
         startCameraBtn.addEventListener('click', startCamera);
+        logoutLink.addEventListener('click', signOut);
+        mobileLogoutLink.addEventListener('click', signOut);
 
         // Check for fullscreen changes
         document.addEventListener('fullscreenchange', checkFullscreen);
@@ -309,6 +387,30 @@
 
         // Check exam code when input changes
         examCodeInput.addEventListener('input', checkExamCode);
+
+        // Cập nhật menu khi đã đăng nhập
+        function updateMenuForLoggedInUser() {
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên desktop
+            loginLink.classList.add('hidden');
+            registerLink.classList.add('hidden');
+            logoutLink.classList.remove('hidden');
+            
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
+            mobileLoginLink.classList.add('hidden');
+            mobileRegisterLink.classList.add('hidden');
+            mobileLogoutLink.classList.remove('hidden');
+        }
+
+        // Hàm đăng xuất
+        function signOut(e) {
+            e.preventDefault();
+            auth.signOut().then(() => {
+                // Đăng xuất thành công
+                window.location.href = 'home.html';
+            }).catch((error) => {
+                console.error('Lỗi khi đăng xuất:', error);
+            });
+        }
 
         // Start QR code scanning
         function startQRScan() {
@@ -792,7 +894,7 @@
         // Exit exam
         function exitExam() {
             stopMonitoring();
-            window.location.href = 'index.html';
+            window.location.href = 'home.html';
         }
     </script>
 </body>
