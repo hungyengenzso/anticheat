@@ -32,17 +32,6 @@
             height: 100%;
             object-fit: cover;
         }
-        .face-count {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 12px;
-            display: none; /* Ẩn counter */
-        }
         .fullscreen-warning {
             position: fixed;
             top: 0;
@@ -101,13 +90,30 @@
             display: flex;
             align-items: center;
         }
+        #audio-indicator {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
     <!-- Camera Preview -->
     <div id="video-container">
         <video id="video-preview" autoplay muted playsinline></video>
-        <div class="face-count" id="face-count-display">Faces: 0</div>
+    </div>
+
+    <!-- Audio Indicator -->
+    <div id="audio-indicator" class="hidden">
+        <i class="fas fa-microphone-slash mr-2"></i>
+        <span>Đang phân tích âm thanh</span>
     </div>
 
     <!-- Fullscreen Warning -->
@@ -122,8 +128,8 @@
     <!-- Camera Warning -->
     <div id="camera-warning" class="camera-warning">
         <i class="fas fa-video text-indigo-500 text-5xl mb-4"></i>
-        <h2 class="text-2xl font-bold mb-2">Yêu cầu truy cập camera</h2>
-        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera trong suốt quá trình làm bài. Hệ thống sẽ phát hiện nếu bạn che camera hoặc có nhiều người trong khung hình.</p>
+        <h2 class="text-2xl font-bold mb-2">Yêu cầu truy cập camera & microphone</h2>
+        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera và microphone trong suốt quá trình làm bài. Hệ thống sẽ phát hiện các hành vi gian lận.</p>
         <button id="start-camera-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
             <i class="fas fa-camera mr-2"></i>Bắt đầu kiểm tra
         </button>
@@ -176,6 +182,7 @@
                     <li>Không được thoát khỏi chế độ toàn màn hình</li>
                     <li>Không được chuyển tab trình duyệt</li>
                     <li>Camera phải luôn bật và chỉ có 1 người trong khung hình</li>
+                    <li>Không được trao đổi trong quá trình làm bài</li>
                     <li>Vi phạm sẽ được ghi lại và thông báo cho người quản lý</li>
                 </ul>
             </div>
@@ -249,7 +256,7 @@
         const startCameraBtn = document.getElementById('start-camera-btn');
         const videoContainer = document.getElementById('video-container');
         const videoPreview = document.getElementById('video-preview');
-        const faceCountDisplay = document.getElementById('face-count-display');
+        const audioIndicator = document.getElementById('audio-indicator');
 
         // Variables
         let currentExam = null;
@@ -257,6 +264,10 @@
         let timeLeft = 0;
         let examStartTime = null;
         let cameraStream = null;
+        let audioStream = null;
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
         let qrScannerActive = false;
         let qrStream = null;
         let violationCount = 0;
@@ -267,6 +278,9 @@
         let faceCount = 0;
         let faceCheckInterval;
         let violationWarningTimeout;
+        let audioCheckInterval;
+        let lastAudioLevel = 0;
+        let speakingCount = 0;
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -406,51 +420,99 @@
             cameraWarning.classList.remove('hidden');
         }
 
-        // Initialize face-api.js and start camera
+        // Initialize face-api.js and start camera & microphone
         async function startCamera() {
             cameraWarning.classList.add('hidden');
+            audioIndicator.classList.remove('hidden');
             
             try {
                 // Load face-api.js models
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
                 
-                // Start camera
-                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                // Start camera and microphone
+                const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         width: 640, 
                         height: 480,
                         facingMode: 'user' 
                     }, 
-                    audio: false 
+                    audio: true 
                 });
                 
-                videoPreview.srcObject = cameraStream;
+                cameraStream = stream;
+                videoPreview.srcObject = stream;
                 videoPreview.width = 640;
                 videoPreview.height = 480;
                 
+                // Initialize audio analysis
+                initAudioAnalysis(stream);
+                
                 // Start face detection
                 faceDetectionActive = true;
-                faceCheckInterval = setInterval(detectFaces, 1000); // Check every second
+                faceCheckInterval = setInterval(detectFaces, 800); // Optimized face detection interval
                 
                 // Enter fullscreen mode
                 enterFullscreen();
                 
             } catch (err) {
-                console.error("Error accessing camera: ", err);
-                alert("Bạn phải cho phép truy cập camera để tiếp tục làm bài");
+                console.error("Error accessing camera/microphone: ", err);
+                alert("Bạn phải cho phép truy cập camera và microphone để tiếp tục làm bài");
                 cameraWarning.classList.remove('hidden');
+                audioIndicator.classList.add('hidden');
                 faceDetectionActive = false;
             }
         }
 
-        // Detect faces using face-api.js
+        // Initialize audio analysis
+        function initAudioAnalysis(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            
+            microphone = audioContext.createMediaStreamSource(stream);
+            microphone.connect(analyser);
+            
+            // Start audio monitoring
+            audioCheckInterval = setInterval(checkAudioLevel, 500); // Check audio every 500ms
+        }
+
+        // Check audio level for speech detection
+        function checkAudioLevel() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            const average = sum / bufferLength;
+            
+            // Detect significant audio change (speech)
+            if (average > 30 && Math.abs(average - lastAudioLevel) > 10) {
+                speakingCount++;
+                
+                // If speaking detected multiple times in a row
+                if (speakingCount > 2) {
+                    recordViolation('audio_detected', 'Phát hiện tiếng nói trong quá trình thi');
+                    speakingCount = 0;
+                }
+            } else {
+                speakingCount = Math.max(0, speakingCount - 1);
+            }
+            
+            lastAudioLevel = average;
+        }
+
+        // Optimized face detection
         async function detectFaces() {
             if (!faceDetectionActive || !videoPreview || videoPreview.readyState < 2) return;
 
             try {
-                // Detect all faces
+                // Use requestAnimationFrame for better performance
+                await new Promise(resolve => requestAnimationFrame(resolve));
+                
+                // Detect all faces (simplified without landmarks for better performance)
                 const detections = await faceapi.detectAllFaces(
                     videoPreview, 
                     new faceapi.TinyFaceDetectorOptions()
@@ -459,13 +521,14 @@
                 // Update face count
                 faceCount = detections.length;
                 
-                // Kiểm tra và ghi nhận vi phạm ngay lập tức
+                // Check for violations immediately
                 if (faceCount !== 1) {
-                    if (faceCount === 0) {
-                        recordViolation('no_face', 'Không phát hiện khuôn mặt trong camera');
-                    } else if (faceCount > 1) {
-                        recordViolation('multiple_faces', `Phát hiện ${faceCount} khuôn mặt trong camera`);
-                    }
+                    const violationType = faceCount === 0 ? 'no_face' : 'multiple_faces';
+                    const violationMsg = faceCount === 0 
+                        ? 'Không phát hiện khuôn mặt trong camera' 
+                        : `Phát hiện ${faceCount} khuôn mặt trong camera`;
+                    
+                    recordViolation(violationType, violationMsg);
                 }
                 
             } catch (error) {
@@ -473,20 +536,32 @@
             }
         }
 
-        // Record violation to Firestore
-        function recordViolation(type, details) {
+        // Fast screenshot capture
+        async function captureScreenshot() {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoPreview.videoWidth;
+                canvas.height = videoPreview.videoHeight;
+                const ctx = canvas.getContext('2d');
+                
+                // Use requestAnimationFrame for smooth capture
+                requestAnimationFrame(() => {
+                    ctx.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
+                    const screenshot = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(screenshot);
+                });
+            });
+        }
+
+        // Record violation to Firestore (optimized)
+        async function recordViolation(type, details) {
             violationCount++;
             
-            // Take screenshot of video
-            const canvas = document.createElement('canvas');
-            canvas.width = videoPreview.videoWidth;
-            canvas.height = videoPreview.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
-            const screenshot = canvas.toDataURL('image/jpeg', 0.7);
+            // Capture screenshot in background without blocking
+            const screenshot = await captureScreenshot();
             
-            // Save violation to Firestore
-            db.collection('violations').add({
+            // Prepare violation data
+            const violationData = {
                 examId: currentExam.id,
                 studentId: auth.currentUser.uid,
                 teacherId: currentExam.createdBy,
@@ -495,14 +570,15 @@
                 screenshot: screenshot,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 faceCount: faceCount
-            })
-            .then(() => {
-                console.log('Violation recorded:', type);
-                showViolationWarning(details);
-            })
-            .catch(error => {
-                console.error('Error recording violation: ', error);
-            });
+            };
+            
+            // Save to Firestore (don't wait for completion)
+            db.collection('violations').add(violationData)
+                .then(() => console.log('Violation recorded:', type))
+                .catch(error => console.error('Error recording violation: ', error));
+            
+            // Show warning to user
+            showViolationWarning(details);
         }
 
         // Show violation warning to user
@@ -642,18 +718,34 @@
             timeLeft--;
         }
 
-        // Stop face detection and clean up
-        function stopFaceDetection() {
+        // Clean up resources
+        function stopMonitoring() {
+            // Stop face detection
             faceDetectionActive = false;
             clearInterval(faceCheckInterval);
+            
+            // Stop audio analysis
+            clearInterval(audioCheckInterval);
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+            }
+            if (microphone) {
+                microphone.disconnect();
+            }
+            
+            // Stop camera
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
         }
 
         // Submit exam
-        function submitExam(e) {
+        async function submitExam(e) {
             if (e) e.preventDefault();
             
             clearInterval(examTimer);
-            stopFaceDetection();
+            stopMonitoring();
             
             // Collect answers
             const answers = [];
@@ -667,25 +759,21 @@
             // Calculate time taken
             const timeTaken = currentExam.time * 60 - timeLeft;
             
-            // Save exam results
-            db.collection('exam_results').add({
-                examId: currentExam.id,
-                studentId: auth.currentUser.uid,
-                teacherId: currentExam.createdBy,
-                answers: answers,
-                timeTaken: timeTaken,
-                violations: violationCount,
-                submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
+            try {
+                // Save exam results
+                await db.collection('exam_results').add({
+                    examId: currentExam.id,
+                    studentId: auth.currentUser.uid,
+                    teacherId: currentExam.createdBy,
+                    answers: answers,
+                    timeTaken: timeTaken,
+                    violations: violationCount,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
                 examQuestionsSection.classList.add('hidden');
                 examCompletedSection.classList.remove('hidden');
-                
-                // Stop camera
-                if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop());
-                    cameraStream = null;
-                }
+                audioIndicator.classList.add('hidden');
                 
                 // Exit fullscreen
                 if (document.exitFullscreen) {
@@ -695,23 +783,15 @@
                 } else if (document.msExitFullscreen) { /* IE11 */
                     document.msExitFullscreen();
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Error submitting exam: ', error);
                 alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
-            });
+            }
         }
 
         // Exit exam
         function exitExam() {
-            // Clean up
-            stopFaceDetection();
-            
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-            }
-            
+            stopMonitoring();
             window.location.href = 'index.html';
         }
     </script>
