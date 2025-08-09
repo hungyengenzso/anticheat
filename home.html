@@ -6,13 +6,13 @@
     <title>ANTI CHEAT - Trang chủ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
             background-color: #f3f4f6;
+            font-family: 'Arial', sans-serif;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
         }
         .card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
@@ -20,6 +20,19 @@
         .card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .active-menu-item {
+            background-color: #7c3aed;
+            color: white;
+            border-radius: 8px;
+        }
+        .mobile-menu {
+            transition: all 0.3s ease;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .mobile-menu.open {
+            max-height: 500px;
         }
     </style>
 </head>
@@ -29,314 +42,125 @@
         <div class="max-w-6xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-4">
-                    <a href="index.html" class="flex items-center space-x-2">
+                    <a href="home.html" class="flex items-center space-x-2">
                         <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
                         <span class="font-bold text-xl">ANTI CHEAT</span>
                     </a>
                 </div>
-                <div class="hidden md:flex items-center space-x-8">
-                    <a href="home.html" class="text-indigo-600 font-medium">Trang chủ</a>
-                    <a href="exam-management.html" class="text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
-                    <a href="exam.html" class="text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
-                    <button id="logout-btn" class="text-gray-600 hover:text-indigo-600 transition">Đăng xuất</button>
+                <div class="hidden md:flex items-center space-x-1">
+                    <a href="home.html" class="px-3 py-2 active-menu-item">Trang chủ</a>
+                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng nhập</a>
+                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng ký</a>
+                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
                 </div>
-                <div class="md:hidden">
-                    <button class="mobile-menu-button p-2 focus:outline-none">
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-button" class="p-2 focus:outline-none">
                         <i class="fas fa-bars text-gray-600 text-xl"></i>
                     </button>
+                </div>
+            </div>
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
+                <div class="px-2 pt-2 pb-3 space-y-1">
+                    <a href="index.html" class="block px-3 py-2 active-menu-item">Trang chủ</a>
+                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng nhập</a>
+                    <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng ký</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-8">
-        <div class="flex justify-between items-center mb-8">
-            <h1 class="text-2xl font-bold">Xin chào, <span id="user-name">Người dùng</span></h1>
-        </div>
-        
-        <div class="grid md:grid-cols-2 gap-8 mb-8">
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-lg shadow-md p-6 card">
-                <h2 class="text-xl font-bold mb-4">Hành động nhanh</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <a href="exam-management.html" class="bg-indigo-50 text-indigo-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-indigo-100 transition">
-                        <i class="fas fa-plus-circle text-2xl mb-2"></i>
-                        <span>Tạo đề thi mới</span>
-                    </a>
-                    <a href="exam.html" class="bg-blue-50 text-blue-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-blue-100 transition">
-                        <i class="fas fa-pen-alt text-2xl mb-2"></i>
-                        <span>Thi trực tuyến</span>
-                    </a>
-                    <a href="exam-management.html" class="bg-green-50 text-green-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-green-100 transition">
-                        <i class="fas fa-clipboard-list text-2xl mb-2"></i>
-                        <span>Xem đề thi</span>
-                    </a>
-                    <a href="exam-management.html" class="bg-purple-50 text-purple-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-purple-100 transition">
-                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
-                        <span>Vi phạm</span>
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Recent Exams -->
-            <div class="bg-white rounded-lg shadow-md p-6 card">
-                <h2 class="text-xl font-bold mb-4">Đề thi gần đây</h2>
-                <div id="recent-exams" class="space-y-4">
-                    <div class="text-center py-4 text-gray-500">Đang tải...</div>
-                </div>
+    <!-- Hero Section -->
+    <section class="hero-section text-white py-20">
+        <div class="max-w-6xl mx-auto px-4 text-center">
+            <h1 class="text-4xl md:text-5xl font-bold mb-6">Giải pháp chống gian lận thi cử</h1>
+            <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Hệ thống giám sát thi trực tuyến với công nghệ AI phát hiện gian lận hiệu quả</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="exam.html" class="bg-white text-indigo-600 font-bold px-8 py-3 rounded-lg hover:bg-gray-100 transition">Thi ngay</a>
+                <a href="register.html" class="bg-indigo-800 text-white font-bold px-8 py-3 rounded-lg hover:bg-indigo-900 transition">Đăng ký tài khoản</a>
             </div>
         </div>
-        
-        <!-- Recent Results -->
-        <div class="bg-white rounded-lg shadow-md p-6 card mb-8">
-            <h2 class="text-xl font-bold mb-4">Kết quả thi gần đây</h2>
-            <div id="recent-results" class="space-y-4">
-                <div class="text-center py-4 text-gray-500">Đang tải...</div>
-            </div>
-        </div>
-        
-        <!-- Statistics -->
-        <div class="grid md:grid-cols-3 gap-8">
-            <div class="bg-white rounded-lg shadow-md p-6 card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Tổng đề thi</p>
-                        <p id="total-exams" class="text-2xl font-bold">--</p>
-                    </div>
-                    <div class="bg-indigo-100 p-3 rounded-full">
-                        <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6 card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Tổng vi phạm</p>
-                        <p id="total-violations" class="text-2xl font-bold">--</p>
-                    </div>
-                    <div class="bg-red-100 p-3 rounded-full">
-                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white rounded-lg shadow-md p-6 card">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm text-gray-500">Điểm trung bình</p>
-                        <p id="average-score" class="text-2xl font-bold">--</p>
-                    </div>
-                    <div class="bg-green-100 p-3 rounded-full">
-                        <i class="fas fa-chart-line text-green-600 text-xl"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+    </section>
 
-    <!-- Footer -->
+    <!-- Features Section -->
+    <section class="py-16 bg-white">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">Tính năng nổi bật</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="card bg-gray-50 p-6 rounded-xl">
+                    <div class="text-indigo-600 mb-4">
+                        <i class="fas fa-eye text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Giám sát thời gian thực</h3>
+                    <p class="text-gray-600">Theo dõi và phát hiện hành vi gian lận ngay lập tức với camera và AI phân tích</p>
+                </div>
+                
+                <!-- Feature 2 -->
+                <div class="card bg-gray-50 p-6 rounded-xl">
+                    <div class="text-indigo-600 mb-4">
+                        <i class="fas fa-lock text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Chế độ thi an toàn</h3>
+                    <p class="text-gray-600">Toàn màn hình bắt buộc, cảnh báo khi thí sinh chuyển tab hoặc thoát khỏi trình duyệt</p>
+                </div>
+                
+                <!-- Feature 3 -->
+                <div class="card bg-gray-50 p-6 rounded-xl">
+                    <div class="text-indigo-600 mb-4">
+                        <i class="fas fa-chart-bar text-3xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold mb-3">Báo cáo chi tiết</h3>
+                    <p class="text-gray-600">Thống kê và báo cáo các vi phạm của thí sinh giúp giáo viên đánh giá chính xác</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section class="py-16 bg-gray-50">
+        <div class="max-w-6xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-12">Cách thức hoạt động</h2>
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Step 1 -->
+                <div class="text-center">
+                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-indigo-600 font-bold text-xl">1</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Tạo đề thi</h3>
+                    <p class="text-gray-600">Giáo viên tạo đề thi với nhiều dạng câu hỏi khác nhau</p>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="text-center">
+                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-indigo-600 font-bold text-xl">2</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Thí sinh làm bài</h3>
+                    <p class="text-gray-600">Thí sinh làm bài trong môi trường được giám sát nghiêm ngặt</p>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="text-center">
+                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <span class="text-indigo-600 font-bold text-xl">3</span>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Báo cáo kết quả</h3>
+                    <p class="text-gray-600">Hệ thống gửi báo cáo chi tiết về bài làm và các vi phạm (nếu có)</p>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <script>
-        // Firebase configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
-            authDomain: "anticheat-749d6.firebaseapp.com",
-            projectId: "anticheat-749d6",
-            storageBucket: "anticheat-749d6.firebasestorage.app",
-            messagingSenderId: "417797975285",
-            appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
-            measurementId: "G-4EDKFS0CY6"
-        };
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // DOM elements
-        const logoutBtn = document.getElementById('logout-btn');
-        const userName = document.getElementById('user-name');
-        const recentExams = document.getElementById('recent-exams');
-        const recentResults = document.getElementById('recent-results');
-        const totalExams = document.getElementById('total-exams');
-        const totalViolations = document.getElementById('total-violations');
-        const averageScore = document.getElementById('average-score');
-
-        // Check auth state
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                // Load user data
-                db.collection('users').doc(user.uid).get()
-                    .then(doc => {
-                        if (doc.exists) {
-                            const userData = doc.data();
-                            userName.textContent = userData.name;
-                        }
-                    });
-                
-                // Load recent exams
-                loadRecentExams(user.uid);
-                
-                // Load recent results
-                loadRecentResults(user.uid);
-                
-                // Load statistics
-                loadStatistics(user.uid);
-            } else {
-                window.location.href = 'login.html';
-            }
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
         });
-
-        // Logout
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut().then(() => {
-                window.location.href = 'login.html';
-            });
-        });
-
-        // Load recent exams
-        function loadRecentExams(userId) {
-            recentExams.innerHTML = '<div class="text-center py-4 text-gray-500">Đang tải...</div>';
-            
-            db.collection('exams')
-                .where('createdBy', '==', userId)
-                .orderBy('createdAt', 'desc')
-                .limit(3)
-                .get()
-                .then(querySnapshot => {
-                    if (querySnapshot.empty) {
-                        recentExams.innerHTML = '<div class="text-center py-4 text-gray-500">Bạn chưa có đề thi nào</div>';
-                        return;
-                    }
-                    
-                    recentExams.innerHTML = '';
-                    
-                    querySnapshot.forEach(doc => {
-                        const exam = doc.data();
-                        
-                        const examElement = document.createElement('div');
-                        examElement.className = 'flex justify-between items-center p-3 border-b border-gray-100';
-                        examElement.innerHTML = `
-                            <div>
-                                <h3 class="font-medium">${exam.name}</h3>
-                                <p class="text-sm text-gray-500">${exam.questions.length} câu hỏi • ${exam.time} phút</p>
-                            </div>
-                            <div class="text-sm font-mono bg-gray-100 px-2 py-1 rounded">${exam.code}</div>
-                        `;
-                        
-                        recentExams.appendChild(examElement);
-                    });
-                    
-                    // Add view all link
-                    const viewAll = document.createElement('a');
-                    viewAll.href = 'exam-management.html';
-                    viewAll.className = 'block text-center mt-4 text-indigo-600 hover:text-indigo-800 text-sm';
-                    viewAll.textContent = 'Xem tất cả đề thi';
-                    recentExams.appendChild(viewAll);
-                })
-                .catch(error => {
-                    console.error('Error loading recent exams:', error);
-                    recentExams.innerHTML = '<div class="text-center py-4 text-red-500">Có lỗi xảy ra khi tải đề thi</div>';
-                });
-        }
-
-        // Load recent results
-        function loadRecentResults(userId) {
-            recentResults.innerHTML = '<div class="text-center py-4 text-gray-500">Đang tải...</div>';
-            
-            db.collection('exam_results')
-                .where('studentId', '==', userId)
-                .orderBy('submittedAt', 'desc')
-                .limit(3)
-                .get()
-                .then(querySnapshot => {
-                    if (querySnapshot.empty) {
-                        recentResults.innerHTML = '<div class="text-center py-4 text-gray-500">Bạn chưa có kết quả thi nào</div>';
-                        return;
-                    }
-                    
-                    recentResults.innerHTML = '';
-                    
-                    querySnapshot.forEach(doc => {
-                        const result = doc.data();
-                        
-                        // Get exam name
-                        db.collection('exams').doc(result.examId).get()
-                            .then(examDoc => {
-                                const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
-                                
-                                const resultElement = document.createElement('div');
-                                resultElement.className = 'flex justify-between items-center p-3 border-b border-gray-100';
-                                resultElement.innerHTML = `
-                                    <div>
-                                        <h3 class="font-medium">${examName}</h3>
-                                        <p class="text-sm text-gray-500">${result.score}/${result.totalQuestions} câu đúng</p>
-                                    </div>
-                                    <div class="text-lg font-bold ${result.percentage >= 50 ? 'text-green-600' : 'text-red-600'}">
-                                        ${result.percentage}%
-                                    </div>
-                                `;
-                                
-                                recentResults.appendChild(resultElement);
-                            });
-                    });
-                    
-                    // Add view all link
-                    const viewAll = document.createElement('a');
-                    viewAll.href = 'exam-management.html';
-                    viewAll.className = 'block text-center mt-4 text-indigo-600 hover:text-indigo-800 text-sm';
-                    viewAll.textContent = 'Xem tất cả kết quả';
-                    recentResults.appendChild(viewAll);
-                })
-                .catch(error => {
-                    console.error('Error loading recent results:', error);
-                    recentResults.innerHTML = '<div class="text-center py-4 text-red-500">Có lỗi xảy ra khi tải kết quả</div>';
-                });
-        }
-
-        // Load statistics
-        function loadStatistics(userId) {
-            // Total exams
-            db.collection('exams')
-                .where('createdBy', '==', userId)
-                .get()
-                .then(querySnapshot => {
-                    totalExams.textContent = querySnapshot.size;
-                });
-            
-            // Total violations
-            db.collection('violations')
-                .where('teacherId', '==', userId)
-                .get()
-                .then(querySnapshot => {
-                    totalViolations.textContent = querySnapshot.size;
-                });
-            
-            // Average score
-            db.collection('exam_results')
-                .where('studentId', '==', userId)
-                .get()
-                .then(querySnapshot => {
-                    if (querySnapshot.empty) {
-                        averageScore.textContent = 'N/A';
-                        return;
-                    }
-                    
-                    let total = 0;
-                    let count = 0;
-                    
-                    querySnapshot.forEach(doc => {
-                        const result = doc.data();
-                        total += result.percentage;
-                        count++;
-                    });
-                    
-                    const avg = Math.round(total / count);
-                    averageScore.textContent = `${avg}%`;
-                });
-        }
     </script>
 </body>
 </html>
