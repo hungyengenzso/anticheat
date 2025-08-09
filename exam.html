@@ -32,11 +32,6 @@
             height: 100%;
             object-fit: cover;
         }
-        .face-box {
-            position: absolute;
-            border: 2px solid #00ff00;
-            background: rgba(0, 255, 0, 0.1);
-        }
         .face-count {
             position: absolute;
             top: 5px;
@@ -46,6 +41,7 @@
             padding: 2px 5px;
             border-radius: 3px;
             font-size: 12px;
+            display: none; /* Ẩn counter */
         }
         .fullscreen-warning {
             position: fixed;
@@ -111,6 +107,7 @@
     <!-- Camera Preview -->
     <div id="video-container">
         <video id="video-preview" autoplay muted playsinline></video>
+        <div class="face-count" id="face-count-display">Faces: 0</div>
     </div>
 
     <!-- Fullscreen Warning -->
@@ -252,6 +249,7 @@
         const startCameraBtn = document.getElementById('start-camera-btn');
         const videoContainer = document.getElementById('video-container');
         const videoPreview = document.getElementById('video-preview');
+        const faceCountDisplay = document.getElementById('face-count-display');
 
         // Variables
         let currentExam = null;
@@ -268,8 +266,6 @@
         let lastFaceCount = 0;
         let faceCount = 0;
         let faceCheckInterval;
-        let noFaceTimer;
-        let multipleFacesTimer;
         let violationWarningTimeout;
 
         // Check auth state
@@ -454,74 +450,26 @@
             if (!faceDetectionActive || !videoPreview || videoPreview.readyState < 2) return;
 
             try {
-                // Create canvas for face detection
-                const canvas = faceapi.createCanvasFromMedia(videoPreview);
-                const displaySize = { width: videoPreview.width, height: videoPreview.height };
-                faceapi.matchDimensions(canvas, displaySize);
-
-                // Detect all faces with landmarks
+                // Detect all faces
                 const detections = await faceapi.detectAllFaces(
                     videoPreview, 
                     new faceapi.TinyFaceDetectorOptions()
-                ).withFaceLandmarks();
+                );
 
                 // Update face count
                 faceCount = detections.length;
                 
-                // Clear previous face boxes and count
-                document.querySelectorAll('.face-box').forEach(el => el.remove());
-                document.querySelectorAll('.face-count').forEach(el => el.remove());
-                
-                // Draw boxes around detected faces
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                resizedDetections.forEach(detection => {
-                    const box = detection.detection.box;
-                    const faceBox = document.createElement('div');
-                    faceBox.className = 'face-box';
-                    faceBox.style.left = `${box.x}px`;
-                    faceBox.style.top = `${box.y}px`;
-                    faceBox.style.width = `${box.width}px`;
-                    faceBox.style.height = `${box.height}px`;
-                    videoContainer.appendChild(faceBox);
-                });
-                
-                // Display face count
-                const countEl = document.createElement('div');
-                countEl.className = 'face-count';
-                countEl.textContent = `Faces: ${faceCount}`;
-                videoContainer.appendChild(countEl);
-                
-                // Check for face violations
-                checkFaceViolations();
+                // Kiểm tra và ghi nhận vi phạm ngay lập tức
+                if (faceCount !== 1) {
+                    if (faceCount === 0) {
+                        recordViolation('no_face', 'Không phát hiện khuôn mặt trong camera');
+                    } else if (faceCount > 1) {
+                        recordViolation('multiple_faces', `Phát hiện ${faceCount} khuôn mặt trong camera`);
+                    }
+                }
                 
             } catch (error) {
                 console.error('Error detecting faces:', error);
-            }
-        }
-
-        // Check for face-related violations
-        function checkFaceViolations() {
-            // Only proceed if face count changed
-            if (faceCount !== lastFaceCount) {
-                lastFaceCount = faceCount;
-                
-                // Clear previous timers
-                clearTimeout(noFaceTimer);
-                clearTimeout(multipleFacesTimer);
-                
-                // Check for violations
-                if (faceCount === 0) {
-                    // No face detected - start timer
-                    noFaceTimer = setTimeout(() => {
-                        recordViolation('no_face', 'Không phát hiện khuôn mặt trong camera');
-                    }, 5000); // 5 seconds with no face
-                } 
-                else if (faceCount > 1) {
-                    // Multiple faces detected - start timer
-                    multipleFacesTimer = setTimeout(() => {
-                        recordViolation('multiple_faces', `Phát hiện ${faceCount} khuôn mặt trong camera`);
-                    }, 5000); // 5 seconds with multiple faces
-                }
             }
         }
 
@@ -698,12 +646,6 @@
         function stopFaceDetection() {
             faceDetectionActive = false;
             clearInterval(faceCheckInterval);
-            clearTimeout(noFaceTimer);
-            clearTimeout(multipleFacesTimer);
-            
-            // Remove face boxes and count
-            document.querySelectorAll('.face-box').forEach(el => el.remove());
-            document.querySelectorAll('.face-count').forEach(el => el.remove());
         }
 
         // Submit exam
