@@ -3,61 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANTI CHEAT - Thi trực tuyến</title>
+    <title>ANTI CHEAT - Trang dự thi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
         }
-        #fullscreen-warning {
+        #video-container {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9999;
-        }
-        #camera-warning {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 9998;
-        }
-        #exam-container {
-            transition: opacity 0.3s ease;
-        }
-        .blurred {
-            filter: blur(5px);
-            pointer-events: none;
-        }
-        #camera-preview {
-            position: fixed;
-            bottom: 20px;
+            top: 20px;
             right: 20px;
             width: 200px;
             height: 150px;
-            border: 3px solid #4f46e5;
+            border: 2px solid #4f46e5;
             border-radius: 8px;
-            z-index: 100;
+            background-color: #000;
+            z-index: 1000;
+        }
+        #video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
         #face-detection-overlay {
             position: absolute;
@@ -65,122 +37,174 @@
             left: 0;
             width: 100%;
             height: 100%;
+            pointer-events: none;
         }
-        #loading-overlay {
+        .face-box {
+            position: absolute;
+            border: 2px solid #10b981;
+            border-radius: 4px;
+        }
+        .timer {
+            font-family: monospace;
+            font-size: 1.5rem;
+        }
+        .fullscreen-warning {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(239, 68, 68, 0.9);
+            color: white;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 9997;
-            flex-direction: column;
+            z-index: 9999;
+            font-size: 1.5rem;
         }
-        .permission-box {
-            border-left: 4px solid #4f46e5;
-            animation: pulse 2s infinite;
+        .question-block {
+            transition: all 0.3s ease;
         }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-            100% { transform: scale(1); }
+        .question-block:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 <body class="bg-gray-100">
-    <!-- Loading overlay -->
-    <div id="loading-overlay" class="hidden">
-        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
-        <p class="text-gray-700">Đang chuẩn bị bài thi...</p>
-    </div>
-
-    <!-- Fullscreen warning (chỉ hiện sau khi bắt đầu thi) -->
-    <div id="fullscreen-warning" class="hidden">
-        <div class="text-center p-6 max-w-md">
-            <i class="fas fa-exclamation-triangle text-5xl text-yellow-400 mb-4"></i>
-            <h2 class="text-2xl font-bold mb-4">Cảnh báo!</h2>
-            <p class="mb-6">Bạn đã thoát khỏi chế độ toàn màn hình. Vui lòng quay lại chế độ toàn màn hình để tiếp tục làm bài.</p>
-            <button id="return-fullscreen" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
-                Quay lại toàn màn hình
-            </button>
-        </div>
-    </div>
-
-    <!-- Camera preview -->
-    <div id="camera-container" class="hidden">
-        <video id="camera-preview" autoplay muted playsinline></video>
+    <!-- Camera Preview -->
+    <div id="video-container" class="hidden">
+        <video id="video" playsinline></video>
         <canvas id="face-detection-overlay"></canvas>
     </div>
 
-    <!-- Exam container -->
-    <div id="exam-container" class="max-w-4xl mx-auto p-6">
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <!-- Exam header -->
-            <div class="bg-indigo-600 text-white p-4">
-                <div class="flex justify-between items-center">
-                    <h1 id="exam-name" class="text-xl font-bold">Đang tải đề thi...</h1>
-                    <div class="flex items-center space-x-4">
-                        <div id="timer" class="bg-indigo-800 px-3 py-1 rounded-lg font-mono">00:00</div>
-                        <button id="submit-exam" class="bg-white text-indigo-600 px-3 py-1 rounded-lg font-medium hover:bg-gray-100 hidden">
-                            Nộp bài
-                        </button>
+    <!-- Fullscreen Warning -->
+    <div id="fullscreen-warning" class="fullscreen-warning hidden">
+        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+        <p class="text-center mb-4">Vui lòng quay lại chế độ toàn màn hình để tiếp tục làm bài</p>
+        <p class="text-center">Bạn có <span id="countdown">10</span> giây để quay lại</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <!-- Exam Entry Section -->
+        <div id="exam-entry" class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-center mb-6">Tham gia bài thi</h1>
+            
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <div class="flex-1">
+                    <label for="exam-code" class="block text-sm font-medium text-gray-700 mb-1">Nhập mã dự thi</label>
+                    <div class="flex">
+                        <input type="text" id="exam-code" class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:ring-indigo-500 focus:border-indigo-500" placeholder="Nhập mã 6 ký tự">
+                        <button id="submit-code" class="bg-indigo-600 text-white px-4 py-2 rounded-r-md hover:bg-indigo-700 transition">Xác nhận</button>
                     </div>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Hoặc quét mã QR</label>
+                    <button id="scan-qr" class="w-full bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
+                        <i class="fas fa-qrcode mr-2"></i>Quét mã QR
+                    </button>
+                    <input type="file" id="qr-input" accept="image/*" class="hidden">
                 </div>
             </div>
             
-            <!-- Exam content -->
-            <div class="p-6">
-                <div id="exam-code-section" class="mb-8">
-                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h2 class="text-lg font-bold mb-2">Nhập mã dự thi</h2>
-                        <div class="flex flex-col sm:flex-row gap-4">
-                            <input type="text" id="exam-code-input" placeholder="Nhập mã dự thi" class="flex-grow px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
-                            <button id="start-exam" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
-                                Bắt đầu thi
-                            </button>
-                        </div>
-                        <div class="mt-2 text-sm text-gray-600">
-                            Hoặc sử dụng camera để quét mã QR từ giám thị
-                        </div>
+            <div id="exam-info" class="hidden bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h2 class="text-xl font-semibold mb-2" id="exam-name"></h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Thời gian làm bài:</p>
+                        <p class="font-medium" id="exam-time"></p>
                     </div>
-                    
-                    <!-- Camera permission request -->
-                    <div id="camera-permission-request" class="mt-6 bg-blue-50 p-4 rounded-lg permission-box">
-                        <div class="flex items-start">
-                            <i class="fas fa-video text-blue-500 text-xl mr-3 mt-1"></i>
-                            <div>
-                                <h3 class="font-bold text-blue-800">YÊU CẦU CẤP QUYỀN CAMERA</h3>
-                                <p class="text-sm text-blue-700 mt-1">Hệ thống sẽ tự động yêu cầu quyền truy cập camera khi bạn bấm "Bắt đầu thi". Vui lòng cho phép để tiếp tục.</p>
-                            </div>
-                        </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Số câu hỏi:</p>
+                        <p class="font-medium" id="exam-questions-count"></p>
                     </div>
                 </div>
-                
-                <div id="exam-content" class="hidden">
-                    <div id="exam-instructions" class="mb-8 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                        <h2 class="text-lg font-bold mb-2 text-blue-800">Hướng dẫn làm bài</h2>
-                        <ul class="list-disc pl-5 space-y-1 text-blue-700">
-                            <li>Bài thi sẽ tự động nộp khi hết thời gian</li>
-                            <li>Không được phép thoát khỏi chế độ toàn màn hình</li>
-                            <li>Không được phép chuyển tab trình duyệt</li>
-                            <li>Camera phải luôn bật và không bị che trong suốt quá trình thi</li>
-                            <li>Chỉ được phép có 1 người xuất hiện trong camera</li>
-                        </ul>
-                    </div>
-                    
-                    <div id="questions-container" class="space-y-8">
-                        <!-- Questions will be loaded here -->
-                    </div>
-                    
-                    <div class="mt-8 flex justify-end">
-                        <button id="submit-exam-bottom" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 hidden">
-                            Nộp bài
-                        </button>
+                <button id="start-exam" class="mt-4 w-full bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                    Bắt đầu làm bài
+                </button>
+            </div>
+        </div>
+
+        <!-- Exam Section -->
+        <div id="exam-section" class="hidden bg-white rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold" id="exam-title"></h1>
+                <div class="timer bg-gray-100 px-4 py-2 rounded-md" id="timer">00:00:00</div>
+            </div>
+            
+            <div id="questions-container" class="space-y-6">
+                <!-- Questions will be loaded here -->
+            </div>
+            
+            <div class="mt-8 flex justify-between">
+                <button id="prev-question" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Câu trước
+                </button>
+                <button id="next-question" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                    Câu tiếp theo<i class="fas fa-arrow-right ml-2"></i>
+                </button>
+                <button id="submit-exam" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition hidden">
+                    <i class="fas fa-paper-plane mr-2"></i>Nộp bài
+                </button>
+            </div>
+        </div>
+
+        <!-- Camera Permission Modal -->
+        <div id="camera-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <div class="text-center mb-4">
+                    <i class="fas fa-camera text-4xl text-indigo-600 mb-3"></i>
+                    <h3 class="text-xl font-bold">Yêu cầu truy cập camera</h3>
+                    <p class="mt-2 text-gray-600">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera để tiếp tục làm bài.</p>
+                </div>
+                <div class="flex justify-center space-x-4 mt-6">
+                    <button id="allow-camera" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                        Cho phép
+                    </button>
+                    <button id="deny-camera" class="bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition">
+                        Từ chối
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Camera Blocked Modal -->
+        <div id="camera-blocked-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-lg p-6 max-w-md w-full">
+                <div class="text-center mb-4">
+                    <i class="fas fa-video-slash text-4xl text-red-600 mb-3"></i>
+                    <h3 class="text-xl font-bold">Không thể truy cập camera</h3>
+                    <p class="mt-2 text-gray-600">Bạn cần cho phép truy cập camera để có thể tham gia bài thi.</p>
+                    <p class="mt-2 text-gray-600">Vui lòng làm mới trang và cho phép truy cập camera khi được hỏi.</p>
+                </div>
+                <div class="flex justify-center mt-6">
+                    <button id="refresh-page" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                        Làm mới trang
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- QR Scanner Modal -->
+        <div id="qr-scanner-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 hidden">
+            <div class="bg-white rounded-lg p-4 max-w-md w-full">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">Quét mã QR</h3>
+                    <button id="close-qr-scanner" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="relative">
+                    <video id="qr-video" class="w-full h-auto border border-gray-300 rounded-md"></video>
+                    <div id="qr-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div class="border-2 border-indigo-500 rounded-md w-64 h-64"></div>
                     </div>
                 </div>
+                <p class="mt-2 text-sm text-gray-600 text-center">Đưa mã QR vào khung hình để quét</p>
+                <button id="upload-qr" class="mt-4 w-full bg-gray-200 text-gray-800 px-4 py-2 rounded-md hover:bg-gray-300 transition">
+                    <i class="fas fa-upload mr-2"></i>Tải lên ảnh chứa mã QR
+                </button>
             </div>
         </div>
     </div>
@@ -203,586 +227,612 @@
         const db = firebase.firestore();
 
         // DOM elements
-        const examContainer = document.getElementById('exam-container');
-        const examCodeSection = document.getElementById('exam-code-section');
-        const examContent = document.getElementById('exam-content');
+        const examEntrySection = document.getElementById('exam-entry');
+        const examSection = document.getElementById('exam-section');
+        const examCodeInput = document.getElementById('exam-code');
+        const submitCodeBtn = document.getElementById('submit-code');
+        const scanQrBtn = document.getElementById('scan-qr');
+        const qrInput = document.getElementById('qr-input');
+        const examInfoDiv = document.getElementById('exam-info');
         const examName = document.getElementById('exam-name');
-        const timer = document.getElementById('timer');
-        const examCodeInput = document.getElementById('exam-code-input');
+        const examTime = document.getElementById('exam-time');
+        const examQuestionsCount = document.getElementById('exam-questions-count');
         const startExamBtn = document.getElementById('start-exam');
-        const submitExamBtn = document.getElementById('submit-exam');
-        const submitExamBottomBtn = document.getElementById('submit-exam-bottom');
+        const examTitle = document.getElementById('exam-title');
+        const timer = document.getElementById('timer');
         const questionsContainer = document.getElementById('questions-container');
+        const prevQuestionBtn = document.getElementById('prev-question');
+        const nextQuestionBtn = document.getElementById('next-question');
+        const submitExamBtn = document.getElementById('submit-exam');
+        const cameraModal = document.getElementById('camera-modal');
+        const allowCameraBtn = document.getElementById('allow-camera');
+        const denyCameraBtn = document.getElementById('deny-camera');
+        const cameraBlockedModal = document.getElementById('camera-blocked-modal');
+        const refreshPageBtn = document.getElementById('refresh-page');
+        const qrScannerModal = document.getElementById('qr-scanner-modal');
+        const qrVideo = document.getElementById('qr-video');
+        const closeQrScannerBtn = document.getElementById('close-qr-scanner');
+        const uploadQrBtn = document.getElementById('upload-qr');
         const fullscreenWarning = document.getElementById('fullscreen-warning');
-        const returnFullscreenBtn = document.getElementById('return-fullscreen');
-        const cameraContainer = document.getElementById('camera-container');
-        const cameraPreview = document.getElementById('camera-preview');
+        const countdownElement = document.getElementById('countdown');
+        const videoContainer = document.getElementById('video-container');
+        const videoElement = document.getElementById('video');
         const faceDetectionOverlay = document.getElementById('face-detection-overlay');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const cameraPermissionRequest = document.getElementById('camera-permission-request');
+        const faceDetectionCtx = faceDetectionOverlay.getContext('2d');
 
         // Exam variables
-        let examData = null;
-        let examId = null;
-        let timeLeft = 0;
+        let currentExam = null;
+        let currentQuestionIndex = 0;
+        let examEndTime = null;
         let timerInterval = null;
+        let examAnswers = [];
         let cameraStream = null;
         let faceDetectionInterval = null;
-        let violations = [];
-        let tabSwitchCount = 0;
-        let fullscreenExitCount = 0;
-        let lastVisibilityChangeTime = Date.now();
-        let examStarted = false;
+        let qrScanner = null;
+        let fullscreenWarningTimeout = null;
+        let violationCount = 0;
 
-        // Load face-api.js models when page loads
-        document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                loadingOverlay.classList.remove('hidden');
-                await loadFaceDetectionModels();
-                loadingOverlay.classList.add('hidden');
-                
-                // Tự động focus vào ô nhập mã đề thi
-                examCodeInput.focus();
-            } catch (error) {
-                console.error('Error loading face detection models:', error);
-                loadingOverlay.querySelector('p').textContent = 'Lỗi khi tải hệ thống giám sát';
+        // Check auth state
+        auth.onAuthStateChanged(user => {
+            if (!user) {
+                window.location.href = 'login.html';
             }
         });
 
-        // Load face-api.js models
-        async function loadFaceDetectionModels() {
-            await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-            await faceapi.nets.faceLandmark68Net.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-            await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-        }
-
-        // Initialize face detection and camera
-        async function initFaceDetection() {
-            try {
-                // Tự động hiển thị popup yêu cầu quyền camera ngay khi bấm "Bắt đầu thi"
-                cameraStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: 640,
-                        height: 480,
-                        facingMode: 'user'
-                    },
-                    audio: false
-                });
-                
-                cameraPreview.srcObject = cameraStream;
-                cameraContainer.classList.remove('hidden');
-                
-                // Start face detection
-                faceDetectionInterval = setInterval(detectFaces, 1000);
-                return true;
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                // Hiển thị cảnh báo yêu cầu bật camera
-                showCameraWarning();
-                return false;
-            }
-        }
-
-        // Show camera warning
-        function showCameraWarning() {
-            const warningHtml = `
-                <div id="camera-warning" class="fixed inset-0 bg-gray-600 bg-opacity-90 flex items-center justify-center z-9998">
-                    <div class="bg-white p-6 rounded-lg max-w-md text-center">
-                        <i class="fas fa-video-slash text-5xl text-red-500 mb-4"></i>
-                        <h2 class="text-2xl font-bold mb-4">YÊU CẦU CAMERA</h2>
-                        <p class="mb-6">Bạn cần cấp quyền truy cập camera để tham gia thi. Vui lòng bấm nút bên dưới để thử lại.</p>
-                        <div class="flex justify-center space-x-4">
-                            <button id="retry-camera" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
-                                <i class="fas fa-sync-alt mr-2"></i>Thử lại
-                            </button>
-                            <button id="cancel-exam" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">
-                                Hủy bỏ
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            const warningElement = document.createElement('div');
-            warningElement.innerHTML = warningHtml;
-            document.body.appendChild(warningElement);
-            
-            // Thêm event listeners cho các nút
-            document.getElementById('retry-camera').addEventListener('click', async () => {
-                warningElement.remove();
-                loadingOverlay.classList.remove('hidden');
-                const success = await initFaceDetection();
-                loadingOverlay.classList.add('hidden');
-                
-                if (success) {
-                    continueExamAfterCameraGranted();
-                }
-            });
-            
-            document.getElementById('cancel-exam').addEventListener('click', () => {
-                warningElement.remove();
-                resetExamState();
-            });
-        }
-
-        // Continue exam after camera is granted
-        function continueExamAfterCameraGranted() {
-            // Tiếp tục quy trình thi sau khi đã cấp quyền camera
-            loadingOverlay.classList.remove('hidden');
-            setTimeout(() => {
-                enterFullscreen().then(success => {
-                    if (success) {
-                        setupExamMonitoring();
-                        loadingOverlay.classList.add('hidden');
-                    } else {
-                        alert('Bạn cần cho phép chế độ toàn màn hình để tiếp tục làm bài');
-                        loadingOverlay.classList.add('hidden');
-                    }
-                });
-            }, 500);
-        }
-
-        // Detect faces in camera stream
-        async function detectFaces() {
-            if (!cameraStream || !examStarted) return;
-            
-            try {
-                const displaySize = {
-                    width: cameraPreview.videoWidth,
-                    height: cameraPreview.videoHeight
-                };
-                
-                faceapi.matchDimensions(faceDetectionOverlay, displaySize);
-                
-                const detections = await faceapi.detectAllFaces(
-                    cameraPreview,
-                    new faceapi.TinyFaceDetectorOptions()
-                ).withFaceLandmarks();
-                
-                // Clear previous drawings
-                const context = faceDetectionOverlay.getContext('2d');
-                context.clearRect(0, 0, faceDetectionOverlay.width, faceDetectionOverlay.height);
-                
-                // Draw new detections
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                faceapi.draw.drawDetections(faceDetectionOverlay, resizedDetections);
-                faceapi.draw.drawFaceLandmarks(faceDetectionOverlay, resizedDetections);
-                
-                // Check for violations
-                if (detections.length === 0) {
-                    recordViolation('no_face', 'Không có khuôn mặt nào được phát hiện trong camera');
-                } else if (detections.length > 1) {
-                    recordViolation('multiple_faces', `Phát hiện ${detections.length} khuôn mặt trong camera`);
-                }
-            } catch (error) {
-                console.error('Face detection error:', error);
-            }
-        }
-
-        // Record a violation
-        function recordViolation(type, details) {
-            const now = Date.now();
-            const recentViolation = violations.find(v => 
-                v.type === type && 
-                (now - v.timestamp) < 5000
-            );
-            
-            if (recentViolation) return;
-            
-            captureScreenshot().then(screenshot => {
-                const violation = {
-                    type,
-                    details,
-                    timestamp: now,
-                    screenshot,
-                    examId,
-                    studentId: auth.currentUser?.uid || 'anonymous',
-                    teacherId: examData?.createdBy || null
-                };
-                
-                violations.push(violation);
-                
-                if (examId) {
-                    db.collection('violations').add({
-                        ...violation,
-                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
-                    }).catch(error => {
-                        console.error('Error saving violation:', error);
-                    });
-                }
-            });
-        }
-
-        // Capture screenshot
-        function captureScreenshot() {
-            return new Promise((resolve) => {
-                if (!cameraStream) {
-                    resolve(null);
-                    return;
-                }
-                
-                const canvas = document.createElement('canvas');
-                canvas.width = cameraPreview.videoWidth;
-                canvas.height = cameraPreview.videoHeight;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(cameraPreview, 0, 0, canvas.width, canvas.height);
-                
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
-            });
-        }
-
-        // Enter fullscreen mode
-        async function enterFullscreen() {
-            if (!document.fullscreenElement) {
-                try {
-                    await document.documentElement.requestFullscreen();
-                    return true;
-                } catch (err) {
-                    console.error('Error attempting to enable fullscreen:', err);
-                    recordViolation('fullscreen_denied', 'Người dùng từ chối chế độ toàn màn hình');
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        // Check fullscreen state (chỉ bắt đầu kiểm tra sau khi bắt đầu thi)
-        function checkFullscreen() {
-            if (!examStarted) return;
-            
-            if (!document.fullscreenElement) {
-                fullscreenExitCount++;
-                examContainer.classList.add('blurred');
-                fullscreenWarning.classList.remove('hidden');
-                recordViolation('fullscreen_exit', `Thoát chế độ toàn màn hình lần thứ ${fullscreenExitCount}`);
-            } else {
-                examContainer.classList.remove('blurred');
-                fullscreenWarning.classList.add('hidden');
-            }
-        }
-
-        // Check tab visibility (chỉ bắt đầu kiểm tra sau khi bắt đầu thi)
-        function handleVisibilityChange() {
-            if (!examStarted) return;
-            
-            if (document.hidden) {
-                const now = Date.now();
-                if (now - lastVisibilityChangeTime > 1000) {
-                    tabSwitchCount++;
-                    recordViolation('tab_switch', `Chuyển tab trình duyệt lần thứ ${tabSwitchCount}`);
-                }
-                lastVisibilityChangeTime = now;
-            }
-        }
-
-        // Setup exam monitoring
-        function setupExamMonitoring() {
-            examStarted = true;
-            document.addEventListener('fullscreenchange', checkFullscreen);
-            document.addEventListener('visibilitychange', handleVisibilityChange);
-        }
-
-        // Start exam timer
-        function startTimer(minutes) {
-            timeLeft = minutes * 60;
-            updateTimerDisplay();
-            
-            timerInterval = setInterval(() => {
-                timeLeft--;
-                updateTimerDisplay();
-                
-                if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
-                    submitExam();
-                }
-            }, 1000);
-        }
-
-        // Update timer display
-        function updateTimerDisplay() {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            if (timeLeft <= 300) {
-                timer.classList.add('bg-red-600');
-                timer.classList.remove('bg-indigo-800');
-            }
-        }
-
-        // Load exam questions
-        function loadExamQuestions() {
-            questionsContainer.innerHTML = '';
-            
-            examData.questions.forEach((question, index) => {
-                const questionElement = document.createElement('div');
-                questionElement.className = 'question-block bg-gray-50 p-4 rounded-lg border border-gray-200';
-                
-                if (question.type === 'mcq') {
-                    questionElement.innerHTML = `
-                        <h3 class="text-lg font-medium mb-3">Câu ${index + 1}: ${question.question}</h3>
-                        <div class="space-y-2">
-                            ${question.options.map((option, i) => `
-                                <label class="flex items-center">
-                                    <input type="radio" name="q${index}" value="${i}" class="mr-2">
-                                    <span>${option}</span>
-                                </label>
-                            `).join('')}
-                        </div>
-                    `;
-                } else if (question.type === 'tf') {
-                    questionElement.innerHTML = `
-                        <h3 class="text-lg font-medium mb-3">Câu ${index + 1}: ${question.question}</h3>
-                        <div class="flex space-x-4">
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="q${index}" value="true" class="mr-2">
-                                <span>Đúng</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="q${index}" value="false" class="mr-2">
-                                <span>Sai</span>
-                            </label>
-                        </div>
-                    `;
-                } else if (question.type === 'sa') {
-                    questionElement.innerHTML = `
-                        <h3 class="text-lg font-medium mb-3">Câu ${index + 1}: ${question.question}</h3>
-                        <input type="text" name="q${index}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                    `;
-                } else if (question.type === 'essay') {
-                    questionElement.innerHTML = `
-                        <h3 class="text-lg font-medium mb-3">Câu ${index + 1}: ${question.question}</h3>
-                        <textarea name="q${index}" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="4"></textarea>
-                    `;
-                }
-                
-                questionsContainer.appendChild(questionElement);
-            });
-        }
-
-        // Submit exam
-        function submitExam() {
-            examStarted = false;
-            clearInterval(timerInterval);
-            clearInterval(faceDetectionInterval);
-            
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraContainer.classList.add('hidden');
-            }
-            
-            document.removeEventListener('fullscreenchange', checkFullscreen);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            
-            // Collect answers
-            const answers = [];
-            examData.questions.forEach((question, index) => {
-                const answerElement = document.querySelector(`input[name="q${index}"]:checked, textarea[name="q${index}"], input[name="q${index}"]`);
-                answers.push({
-                    question: question.question,
-                    answer: answerElement ? answerElement.value : '',
-                    correctAnswer: question.correctOption || question.correctAnswer || ''
-                });
-            });
-            
-            // Calculate score
-            const score = answers.reduce((total, answer, index) => {
-                const question = examData.questions[index];
-                if (!answer.answer) return total;
-                
-                if (question.type === 'mcq' || question.type === 'tf' || question.type === 'sa') {
-                    if (answer.answer === (question.correctOption || question.correctAnswer)) {
-                        return total + 1;
-                    }
-                }
-                return total;
-            }, 0);
-            
-            const totalQuestions = examData.questions.length;
-            const percentage = Math.round((score / totalQuestions) * 100);
-            
-            // Save results
-            if (auth.currentUser) {
-                db.collection('exam_results').add({
-                    examId,
-                    studentId: auth.currentUser.uid,
-                    answers,
-                    score,
-                    totalQuestions,
-                    percentage,
-                    violations,
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(() => {
-                    showExamResult(score, totalQuestions, percentage);
-                }).catch(error => {
-                    console.error('Error saving exam results:', error);
-                    showExamResult(score, totalQuestions, percentage);
-                });
-            } else {
-                showExamResult(score, totalQuestions, percentage);
-            }
-        }
-
-        // Show exam result
-        function showExamResult(score, totalQuestions, percentage) {
-            examContent.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fas fa-check-circle text-5xl text-green-500 mb-4"></i>
-                    <h2 class="text-2xl font-bold mb-2">Hoàn thành bài thi</h2>
-                    <p class="text-lg mb-6">Bạn đã hoàn thành bài thi <span class="font-bold">${examData.name}</span></p>
-                    
-                    <div class="bg-gray-50 p-6 rounded-lg inline-block text-left max-w-md mx-auto">
-                        <h3 class="text-xl font-bold mb-4 text-center">Kết quả</h3>
-                        <div class="space-y-3">
-                            <div class="flex justify-between">
-                                <span>Số câu đúng:</span>
-                                <span class="font-bold">${score}/${totalQuestions}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Tỉ lệ đúng:</span>
-                                <span class="font-bold">${percentage}%</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span>Số lần vi phạm:</span>
-                                <span class="font-bold">${violations.length}</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="mt-8">
-                        <a href="index.html" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 inline-block">
-                            Quay về trang chủ
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
-
-        // Reset exam state
-        function resetExamState() {
-            examStarted = false;
-            clearInterval(timerInterval);
-            clearInterval(faceDetectionInterval);
-            
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-                cameraStream = null;
-            }
-            
-            cameraContainer.classList.add('hidden');
-            examContent.classList.add('hidden');
-            examCodeSection.classList.remove('hidden');
-            submitExamBtn.classList.add('hidden');
-            submitExamBottomBtn.classList.add('hidden');
-            
-            document.removeEventListener('fullscreenchange', checkFullscreen);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            
-            // Exit fullscreen if in fullscreen mode
-            if (document.fullscreenElement) {
-                document.exitFullscreen().catch(err => {
-                    console.error('Error exiting fullscreen:', err);
-                });
-            }
-        }
-
-        // Start exam process
-        async function startExamProcess() {
-            const examCode = examCodeInput.value.trim();
-            
-            if (!examCode) {
-                alert('Vui lòng nhập mã dự thi');
+        // Submit exam code
+        submitCodeBtn.addEventListener('click', () => {
+            const code = examCodeInput.value.trim().toUpperCase();
+            if (code.length !== 6) {
+                alert('Mã dự thi phải có 6 ký tự');
                 return;
             }
             
+            checkExamCode(code);
+        });
+
+        // Scan QR code
+        scanQrBtn.addEventListener('click', () => {
+            qrScannerModal.classList.remove('hidden');
+            startQRScanner();
+        });
+
+        // Close QR scanner
+        closeQrScannerBtn.addEventListener('click', () => {
+            stopQRScanner();
+            qrScannerModal.classList.add('hidden');
+        });
+
+        // Upload QR image
+        uploadQrBtn.addEventListener('click', () => {
+            qrInput.click();
+        });
+
+        // Handle QR image upload
+        qrInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
             try {
-                loadingOverlay.classList.remove('hidden');
+                const result = await QRScanner.scanImage(file);
+                if (result) {
+                    checkExamCode(result);
+                    stopQRScanner();
+                    qrScannerModal.classList.add('hidden');
+                } else {
+                    alert('Không tìm thấy mã QR trong ảnh');
+                }
+            } catch (error) {
+                console.error('QR scan error:', error);
+                alert('Lỗi khi quét mã QR từ ảnh');
+            }
+        });
+
+        // Check exam code
+        async function checkExamCode(code) {
+            try {
+                const snapshot = await db.collection('exams').where('code', '==', code).get();
                 
-                // 1. Tìm đề thi theo mã
-                const examsQuery = db.collection('exams').where('code', '==', examCode).limit(1);
-                const querySnapshot = await examsQuery.get();
-                
-                if (querySnapshot.empty) {
-                    loadingOverlay.classList.add('hidden');
+                if (snapshot.empty) {
                     alert('Mã dự thi không hợp lệ');
                     return;
                 }
                 
-                querySnapshot.forEach(doc => {
-                    examData = doc.data();
-                    examId = doc.id;
-                });
+                // Get the first matching exam (should be only one)
+                const doc = snapshot.docs[0];
+                currentExam = {
+                    id: doc.id,
+                    ...doc.data()
+                };
                 
-                // 2. Khởi tạo camera (sẽ tự động hiển thị popup yêu cầu quyền)
-                const cameraSuccess = await initFaceDetection();
-                if (!cameraSuccess) {
-                    // Nếu không cấp quyền camera, hàm initFaceDetection đã hiển thị cảnh báo
-                    loadingOverlay.classList.add('hidden');
-                    return;
-                }
+                // Display exam info
+                examName.textContent = currentExam.name;
+                examTime.textContent = `${currentExam.time} phút`;
+                examQuestionsCount.textContent = currentExam.questions.length;
+                examInfoDiv.classList.remove('hidden');
                 
-                // 3. Cập nhật giao diện
-                examName.textContent = examData.name;
-                examCodeSection.classList.add('hidden');
-                examContent.classList.remove('hidden');
-                submitExamBtn.classList.remove('hidden');
-                submitExamBottomBtn.classList.remove('hidden');
-                
-                // 4. Tải câu hỏi
-                loadExamQuestions();
-                
-                // 5. Bắt đầu tính giờ
-                startTimer(examData.time);
-                
-                // 6. Vào chế độ toàn màn hình
-                const fullscreenSuccess = await enterFullscreen();
-                if (!fullscreenSuccess) {
-                    loadingOverlay.classList.add('hidden');
-                    alert('Bạn cần cho phép chế độ toàn màn hình để tiếp tục làm bài');
-                    return;
-                }
-                
-                // 7. Bắt đầu giám sát
-                setupExamMonitoring();
-                
-                loadingOverlay.classList.add('hidden');
+                // Scroll to exam info
+                examInfoDiv.scrollIntoView({ behavior: 'smooth' });
             } catch (error) {
-                console.error('Error in exam process:', error);
-                loadingOverlay.classList.add('hidden');
-                
-                if (error.name === 'NotAllowedError') {
-                    showCameraWarning();
-                } else {
-                    alert('Có lỗi xảy ra khi bắt đầu bài thi: ' + error.message);
-                }
+                console.error('Error checking exam code:', error);
+                alert('Có lỗi xảy ra khi kiểm tra mã dự thi');
             }
         }
 
-        // Event listeners
-        returnFullscreenBtn.addEventListener('click', () => {
-            enterFullscreen();
-        });
-
+        // Start exam
         startExamBtn.addEventListener('click', () => {
-            startExamProcess().catch(error => {
-                console.error('Error in exam process:', error);
-            });
+            // Show camera permission modal
+            cameraModal.classList.remove('hidden');
         });
 
-        submitExamBtn.addEventListener('click', submitExam);
-        submitExamBottomBtn.addEventListener('click', submitExam);
-
-        // Check auth state
-        auth.onAuthStateChanged(user => {
-            // Optional: personalize experience for logged in users
+        // Allow camera
+        allowCameraBtn.addEventListener('click', async () => {
+            cameraModal.classList.add('hidden');
+            try {
+                await startCamera();
+                // Proceed with exam
+                startExam();
+            } catch (error) {
+                console.error('Camera error:', error);
+                cameraBlockedModal.classList.remove('hidden');
+            }
         });
 
-        // Handle Enter key in exam code input
-        examCodeInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                startExamProcess().catch(error => {
-                    console.error('Error in exam process:', error);
+        // Deny camera
+        denyCameraBtn.addEventListener('click', () => {
+            cameraModal.classList.add('hidden');
+            cameraBlockedModal.classList.remove('hidden');
+        });
+
+        // Refresh page
+        refreshPageBtn.addEventListener('click', () => {
+            location.reload();
+        });
+
+        // Start camera
+        async function startCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'user',
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
                 });
+                
+                videoElement.srcObject = cameraStream;
+                videoContainer.classList.remove('hidden');
+                
+                // Start face detection
+                startFaceDetection();
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // Start face detection
+        function startFaceDetection() {
+            // Load face detection model (using a simple approach for demo)
+            // In a real app, you would use a proper face detection library like face-api.js
+            faceDetectionOverlay.width = videoElement.clientWidth;
+            faceDetectionOverlay.height = videoElement.clientHeight;
+            
+            faceDetectionInterval = setInterval(() => {
+                detectFaces();
+            }, 1000); // Check every second
+        }
+
+        // Simple face detection (demo only)
+        function detectFaces() {
+            // In a real implementation, you would use a proper face detection library
+            // This is just a placeholder to illustrate the concept
+            
+            // Mock detection - assume we have 1 face
+            const faces = [{ x: 50, y: 50, width: 100, height: 100 }];
+            
+            faceDetectionCtx.clearRect(0, 0, faceDetectionOverlay.width, faceDetectionOverlay.height);
+            
+            // Draw face boxes
+            faces.forEach(face => {
+                faceDetectionCtx.strokeStyle = '#10b981';
+                faceDetectionCtx.lineWidth = 2;
+                faceDetectionCtx.strokeRect(
+                    face.x, 
+                    face.y, 
+                    face.width, 
+                    face.height
+                );
+            });
+            
+            // Check for violations
+            if (faces.length === 0) {
+                // No face detected
+                logViolation('no_face', 'Không có người trong camera');
+            } else if (faces.length > 1) {
+                // Multiple faces detected
+                logViolation('multiple_faces', `Phát hiện ${faces.length} người trong camera`);
+            }
+        }
+
+        // Start exam
+        function startExam() {
+            // Hide entry section, show exam section
+            examEntrySection.classList.add('hidden');
+            examSection.classList.remove('hidden');
+            
+            // Set exam title
+            examTitle.textContent = currentExam.name;
+            
+            // Calculate end time
+            const now = new Date();
+            examEndTime = new Date(now.getTime() + currentExam.time * 60000);
+            
+            // Start timer
+            updateTimer();
+            timerInterval = setInterval(updateTimer, 1000);
+            
+            // Initialize answers array
+            examAnswers = new Array(currentExam.questions.length).fill(null);
+            
+            // Load questions
+            loadQuestion(0);
+            
+            // Enter fullscreen
+            enterFullscreen();
+            
+            // Set up event listeners for cheating detection
+            setupCheatingDetection();
+        }
+
+        // Load question
+        function loadQuestion(index) {
+            if (index < 0 || index >= currentExam.questions.length) return;
+            
+            currentQuestionIndex = index;
+            questionsContainer.innerHTML = '';
+            
+            const question = currentExam.questions[index];
+            const questionNumber = index + 1;
+            
+            let questionHtml = '';
+            
+            if (question.type === 'mcq') {
+                questionHtml = `
+                    <div class="question-block bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-4">Câu ${questionNumber}: ${question.question}</h3>
+                        <div class="space-y-3">
+                            ${question.options.map((option, i) => `
+                                <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                    <input type="radio" name="answer" value="${i}" class="h-4 w-4 text-indigo-600" 
+                                        ${examAnswers[index] === i ? 'checked' : ''}>
+                                    <span>${option}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (question.type === 'tf') {
+                questionHtml = `
+                    <div class="question-block bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-4">Câu ${questionNumber}: ${question.question}</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="answer" value="true" class="h-4 w-4 text-indigo-600"
+                                    ${examAnswers[index] === 'true' ? 'checked' : ''}>
+                                <span>Đúng</span>
+                            </label>
+                            <label class="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="answer" value="false" class="h-4 w-4 text-indigo-600"
+                                    ${examAnswers[index] === 'false' ? 'checked' : ''}>
+                                <span>Sai</span>
+                            </label>
+                        </div>
+                    </div>
+                `;
+            } else if (question.type === 'sa') {
+                questionHtml = `
+                    <div class="question-block bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-4">Câu ${questionNumber}: ${question.question}</h3>
+                        <textarea class="w-full px-3 py-2 border border-gray-300 rounded-md" 
+                            placeholder="Nhập câu trả lời của bạn">${examAnswers[index] || ''}</textarea>
+                    </div>
+                `;
+            } else if (question.type === 'essay') {
+                questionHtml = `
+                    <div class="question-block bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+                        <h3 class="text-lg font-semibold mb-4">Câu ${questionNumber}: ${question.question}</h3>
+                        <textarea class="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[200px]" 
+                            placeholder="Nhập câu trả lời của bạn">${examAnswers[index] || ''}</textarea>
+                    </div>
+                `;
+            }
+            
+            questionsContainer.innerHTML = questionHtml;
+            
+            // Update navigation buttons
+            prevQuestionBtn.classList.toggle('hidden', index === 0);
+            nextQuestionBtn.classList.toggle('hidden', index === currentExam.questions.length - 1);
+            submitExamBtn.classList.toggle('hidden', index !== currentExam.questions.length - 1);
+            
+            // Save answer when changed
+            const answerInputs = questionsContainer.querySelectorAll('input[name="answer"], textarea');
+            answerInputs.forEach(input => {
+                input.addEventListener('change', () => {
+                    saveAnswer(index, input.value);
+                });
+            });
+            
+            // For textareas, save on input
+            const textareas = questionsContainer.querySelectorAll('textarea');
+            textareas.forEach(textarea => {
+                textarea.addEventListener('input', () => {
+                    saveAnswer(index, textarea.value);
+                });
+            });
+        }
+
+        // Save answer
+        function saveAnswer(index, answer) {
+            examAnswers[index] = answer;
+        }
+
+        // Navigation buttons
+        prevQuestionBtn.addEventListener('click', () => {
+            loadQuestion(currentQuestionIndex - 1);
+        });
+
+        nextQuestionBtn.addEventListener('click', () => {
+            loadQuestion(currentQuestionIndex + 1);
+        });
+
+        // Submit exam
+        submitExamBtn.addEventListener('click', () => {
+            if (confirm('Bạn có chắc chắn muốn nộp bài?')) {
+                submitExam();
+            }
+        });
+
+        // Submit exam to server
+        function submitExam() {
+            clearInterval(timerInterval);
+            clearInterval(faceDetectionInterval);
+            
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            // Calculate score (this would be done server-side in a real app)
+            let score = 0;
+            currentExam.questions.forEach((question, index) => {
+                const answer = examAnswers[index];
+                if (!answer) return;
+                
+                if (question.type === 'mcq' && answer == question.correctOption) {
+                    score++;
+                } else if (question.type === 'tf' && answer === question.correctAnswer) {
+                    score++;
+                } else if (question.type === 'sa' && answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim()) {
+                    score++;
+                }
+                // Essay questions are not auto-scored
+            });
+            
+            // Save exam results
+            const user = auth.currentUser;
+            db.collection('exam_results').add({
+                examId: currentExam.id,
+                userId: user.uid,
+                answers: examAnswers,
+                score: score,
+                totalQuestions: currentExam.questions.length,
+                submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                violations: violationCount
+            })
+            .then(() => {
+                alert(`Bạn đã nộp bài thành công!\nĐiểm số: ${score}/${currentExam.questions.length}`);
+                window.location.href = 'index.html';
+            })
+            .catch(error => {
+                console.error('Error submitting exam:', error);
+                alert('Có lỗi xảy ra khi nộp bài');
+            });
+        }
+
+        // Update timer
+        function updateTimer() {
+            const now = new Date();
+            const diff = examEndTime - now;
+            
+            if (diff <= 0) {
+                clearInterval(timerInterval);
+                timer.textContent = '00:00:00';
+                submitExam();
+                return;
+            }
+            
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            
+            timer.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        // Enter fullscreen
+        function enterFullscreen() {
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                }
+            } catch (error) {
+                console.error('Fullscreen error:', error);
+            }
+        }
+
+        // Setup cheating detection
+        function setupCheatingDetection() {
+            // Fullscreen change detection
+            document.addEventListener('fullscreenchange', handleFullscreenChange);
+            document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.addEventListener('msfullscreenchange', handleFullscreenChange);
+            
+            // Visibility change (tab switching)
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Window blur (potential cheating)
+            window.addEventListener('blur', handleWindowBlur);
+        }
+
+        // Handle fullscreen change
+        function handleFullscreenChange() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                // User exited fullscreen
+                logViolation('fullscreen_exit', 'Thí sinh đã thoát chế độ toàn màn hình');
+                showFullscreenWarning();
+            } else {
+                // User entered fullscreen
+                hideFullscreenWarning();
+            }
+        }
+
+        // Handle visibility change
+        function handleVisibilityChange() {
+            if (document.hidden) {
+                // User switched tabs
+                logViolation('tab_switch', 'Thí sinh đã chuyển tab trình duyệt');
+            }
+        }
+
+        // Handle window blur
+        function handleWindowBlur() {
+            // User may have switched applications
+            logViolation('window_blur', 'Thí sinh đã rời khỏi cửa sổ trình duyệt');
+        }
+
+        // Show fullscreen warning
+        function showFullscreenWarning() {
+            fullscreenWarning.classList.remove('hidden');
+            
+            let countdown = 10;
+            countdownElement.textContent = countdown;
+            
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                countdownElement.textContent = countdown;
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+                    submitExam();
+                }
+            }, 1000);
+            
+            fullscreenWarningTimeout = countdownInterval;
+        }
+
+        // Hide fullscreen warning
+        function hideFullscreenWarning() {
+            fullscreenWarning.classList.add('hidden');
+            if (fullscreenWarningTimeout) {
+                clearInterval(fullscreenWarningTimeout);
+                fullscreenWarningTimeout = null;
+            }
+        }
+
+        // Log violation
+        function logViolation(type, details) {
+            violationCount++;
+            
+            const user = auth.currentUser;
+            if (!user || !currentExam) return;
+            
+            // Capture screenshot (simplified - in a real app you'd capture canvas)
+            let screenshot = null;
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = videoElement.videoWidth;
+                canvas.height = videoElement.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+                screenshot = canvas.toDataURL('image/jpeg', 0.7);
+            } catch (error) {
+                console.error('Error capturing screenshot:', error);
+            }
+            
+            // Save violation to Firestore
+            db.collection('violations').add({
+                examId: currentExam.id,
+                studentId: user.uid,
+                teacherId: currentExam.createdBy,
+                type: type,
+                details: details,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                screenshot: screenshot
+            })
+            .catch(error => {
+                console.error('Error logging violation:', error);
+            });
+        }
+
+        // Start QR scanner
+        async function startQRScanner() {
+            try {
+                qrScanner = new QrScanner(
+                    qrVideo,
+                    result => {
+                        if (result) {
+                            checkExamCode(result);
+                            stopQRScanner();
+                            qrScannerModal.classList.add('hidden');
+                        }
+                    },
+                    {
+                        highlightScanRegion: true,
+                        highlightCodeOutline: true,
+                    }
+                );
+                
+                await qrScanner.start();
+            } catch (error) {
+                console.error('QR Scanner error:', error);
+                alert('Không thể khởi động trình quét QR');
+            }
+        }
+
+        // Stop QR scanner
+        function stopQRScanner() {
+            if (qrScanner) {
+                qrScanner.stop();
+                qrScanner = null;
+            }
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', (e) => {
+            if (currentExam && !examEndTime) {
+                // Prevent accidental exit during exam
+                e.preventDefault();
+                e.returnValue = 'Bạn có chắc muốn rời khỏi trang? Bài làm của bạn sẽ bị mất.';
+                return e.returnValue;
+            }
+            
+            // Clean up resources
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            if (faceDetectionInterval) {
+                clearInterval(faceDetectionInterval);
+            }
+            
+            if (timerInterval) {
+                clearInterval(timerInterval);
+            }
+            
+            if (qrScanner) {
+                stopQRScanner();
             }
         });
     </script>
