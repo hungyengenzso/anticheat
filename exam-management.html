@@ -30,6 +30,10 @@
             background-color: #dcfce7;
             border-left: 4px solid #22c55e;
         }
+        .incorrect-answer {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
+        }
         .mobile-menu {
             transition: all 0.3s ease;
             max-height: 0;
@@ -43,6 +47,25 @@
         }
         .graded-result {
             background-color: #dcfce7;
+        }
+        .correct-icon {
+            color: #22c55e;
+        }
+        .incorrect-icon {
+            color: #ef4444;
+        }
+        .answer-label {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-bottom: 4px;
+        }
+        .correct-answer-label {
+            background-color: #dcfce7;
+        }
+        .student-answer {
+            font-weight: bold;
         }
     </style>
 </head>
@@ -179,7 +202,7 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thí sinh</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đề thi</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngày thi</th>
-                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tự động chấm</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Điểm</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hành động</th>
                             </tr>
@@ -232,13 +255,17 @@
                 </button>
             </div>
             
-            <div class="mb-4">
-                <p><strong>Thí sinh:</strong> <span id="result-student-name"></span></p>
-                <p><strong>Đề thi:</strong> <span id="result-exam-name"></span></p>
-                <p><strong>Ngày thi:</strong> <span id="result-exam-date"></span></p>
-                <p><strong>Thời gian làm bài:</strong> <span id="result-exam-duration"></span> giây</p>
-                <p><strong>Số lần vi phạm:</strong> <span id="result-violations"></span></p>
-                <p><strong>Điểm tự động:</strong> <span id="result-auto-score"></span></p>
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <p><strong>Thí sinh:</strong> <span id="result-student-name"></span></p>
+                    <p><strong>Đề thi:</strong> <span id="result-exam-name"></span></p>
+                    <p><strong>Ngày thi:</strong> <span id="result-exam-date"></span></p>
+                </div>
+                <div>
+                    <p><strong>Thời gian làm bài:</strong> <span id="result-exam-duration"></span> giây</p>
+                    <p><strong>Số lần vi phạm:</strong> <span id="result-violations"></span></p>
+                    <p><strong>Điểm tự động:</strong> <span id="result-auto-score"></span></p>
+                </div>
             </div>
             
             <div class="border-t border-b border-gray-200 py-4 mb-4">
@@ -509,6 +536,7 @@
                                 db.collection('exams').doc(result.examId).get()
                                     .then(examDoc => {
                                         const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
+                                        const totalQuestions = examDoc.exists ? examDoc.data().questions.length : 0;
                                         
                                         const row = document.createElement('tr');
                                         row.className = result.status === 'pending' ? 'pending-result' : 'graded-result';
@@ -524,7 +552,7 @@
                                                 <div class="text-gray-900">${result.submittedAt.toDate().toLocaleString()}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${result.score || 0}/${result.totalQuestions || 0}</div>
+                                                <div class="text-gray-900">${result.score || 0}/${totalQuestions}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
                                                 <div class="text-gray-900">${result.status === 'pending' ? 'Chờ chấm' : 'Đã chấm'}</div>
@@ -679,97 +707,115 @@
                                     document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
                                     document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
                                     document.getElementById('result-violations').textContent = result.violations || 0;
-                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${result.totalQuestions || 0}`;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
                                     document.getElementById('result-total-score').textContent = result.finalScore || result.score || 0;
-                                    document.getElementById('result-max-score').textContent = result.totalQuestions || 0;
+                                    document.getElementById('result-max-score').textContent = currentExamData.questions.length;
                                     
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
                                     
                                     currentExamData.questions.forEach((question, index) => {
                                         const questionElement = document.createElement('div');
-                                        questionElement.className = 'question-block bg-gray-50 p-4 rounded-lg border border-gray-200';
-                                        
                                         const studentAnswer = result.answers[index]?.answer || '';
                                         const isCorrect = checkAnswerCorrect(question, studentAnswer);
                                         
-                                        if (isCorrect) {
-                                            questionElement.classList.add('correct-answer');
-                                        }
+                                        questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
+                                            isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                        }`;
                                         
                                         let questionHtml = '';
                                         
                                         if (question.type === 'mcq') {
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="space-y-2 mb-3">
-                                                    ${question.options.map((option, i) => `
-                                                        <div class="flex items-center">
-                                                            <input type="radio" name="q${index}" value="${i}" class="mr-2" 
-                                                                ${studentAnswer === i.toString() ? 'checked' : ''} disabled>
-                                                            <span class="${question.correctOption === i.toString() ? 'font-bold text-green-600' : ''}">${option}</span>
-                                                            ${question.correctOption === i.toString() ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
-                                                        </div>
-                                                    `).join('')}
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${getSelectedOption(question.options, studentAnswer)}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="space-y-2 mb-3">
+                                                        ${question.options.map((option, i) => {
+                                                            const isStudentAnswer = studentAnswer === i.toString();
+                                                            const isCorrectOption = question.correctOption === i.toString();
+                                                            return `
+                                                                <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
+                                                                    <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
+                                                                    <span class="flex-grow">${option}</span>
+                                                                    ${isStudentAnswer ? 
+                                                                        `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                                    ${isStudentAnswer && isCorrectOption ? 
+                                                                        `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                                    ${isStudentAnswer && !isCorrectOption ? 
+                                                                        `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                                </div>
+                                                            `;
+                                                        }).join('')}
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
+                                                    </div>
                                                 </div>
                                             `;
                                         } else if (question.type === 'tf') {
+                                            const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
+                                            const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
+                                            
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="space-y-2 mb-3">
-                                                    <div class="flex items-center">
-                                                        <input type="radio" name="q${index}" value="true" class="mr-2" 
-                                                            ${studentAnswer === 'true' ? 'checked' : ''} disabled>
-                                                        <span class="${question.correctAnswer === 'true' ? 'font-bold text-green-600' : ''}">Đúng</span>
-                                                        ${question.correctAnswer === 'true' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="space-y-2 mb-3">
+                                                        <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
+                                                            <span>Đúng</span>
+                                                            ${studentAnswer === 'true' ? 
+                                                                `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                            ${studentAnswer === 'true' && question.correctAnswer === 'true' ? 
+                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                            ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                                `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                        </div>
+                                                        <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
+                                                            <span>Sai</span>
+                                                            ${studentAnswer === 'false' ? 
+                                                                `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                            ${studentAnswer === 'false' && question.correctAnswer === 'false' ? 
+                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                            ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
+                                                                `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center">
-                                                        <input type="radio" name="q${index}" value="false" class="mr-2" 
-                                                            ${studentAnswer === 'false' ? 'checked' : ''} disabled>
-                                                        <span class="${question.correctAnswer === 'false' ? 'font-bold text-green-600' : ''}">Sai</span>
-                                                        ${question.correctAnswer === 'false' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${correctAnswerText}
                                                     </div>
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer === 'true' ? 'Đúng' : 'Sai'}
                                                 </div>
                                             `;
                                         } else if (question.type === 'sa') {
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="mb-3">
-                                                    <p class="font-bold text-green-600">Đáp án đúng: ${question.correctAnswer}</p>
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer || 'Không trả lời'}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="mb-3">
+                                                        <p class="font-bold">Trả lời của thí sinh:</p>
+                                                        <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${question.correctAnswer}
+                                                    </div>
+                                                    ${isCorrect ? 
+                                                        `<i class="fas fa-check correct-icon mt-2"></i>` : 
+                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>`
+                                                    }
                                                 </div>
                                             `;
                                         } else if (question.type === 'essay') {
                                             const manualScore = result.answers[index]?.manualScore || 0;
                                             questionHtml = `
-                                                <div class="mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                </div>
-                                                <div class="bg-white p-3 border border-gray-300 rounded mb-3">
-                                                    <p class="whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
-                                                </div>
-                                                <div class="flex items-center mb-2">
-                                                    <label class="mr-3">Điểm:</label>
-                                                    <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
-                                                        class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}" disabled>
-                                                    <span class="ml-2">/ 1</span>
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="mb-3">
+                                                        <p class="font-bold">Trả lời của thí sinh:</p>
+                                                        <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
+                                                    </div>
+                                                    <div class="flex items-center mb-2">
+                                                        <label class="mr-3">Điểm:</label>
+                                                        <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
+                                                            class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}" disabled>
+                                                        <span class="ml-2">/ 1</span>
+                                                    </div>
                                                 </div>
                                             `;
                                         }
@@ -828,97 +874,115 @@
                                     document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
                                     document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
                                     document.getElementById('result-violations').textContent = result.violations || 0;
-                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${result.totalQuestions || 0}`;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
                                     document.getElementById('result-total-score').textContent = result.score || 0;
-                                    document.getElementById('result-max-score').textContent = result.totalQuestions || 0;
+                                    document.getElementById('result-max-score').textContent = currentExamData.questions.length;
                                     
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
                                     
                                     currentExamData.questions.forEach((question, index) => {
                                         const questionElement = document.createElement('div');
-                                        questionElement.className = 'question-block bg-gray-50 p-4 rounded-lg border border-gray-200';
-                                        
                                         const studentAnswer = result.answers[index]?.answer || '';
                                         const isCorrect = checkAnswerCorrect(question, studentAnswer);
                                         
-                                        if (isCorrect) {
-                                            questionElement.classList.add('correct-answer');
-                                        }
+                                        questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
+                                            isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                        }`;
                                         
                                         let questionHtml = '';
                                         
                                         if (question.type === 'mcq') {
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="space-y-2 mb-3">
-                                                    ${question.options.map((option, i) => `
-                                                        <div class="flex items-center">
-                                                            <input type="radio" name="q${index}" value="${i}" class="mr-2" 
-                                                                ${studentAnswer === i.toString() ? 'checked' : ''} disabled>
-                                                            <span class="${question.correctOption === i.toString() ? 'font-bold text-green-600' : ''}">${option}</span>
-                                                            ${question.correctOption === i.toString() ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
-                                                        </div>
-                                                    `).join('')}
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${getSelectedOption(question.options, studentAnswer)}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="space-y-2 mb-3">
+                                                        ${question.options.map((option, i) => {
+                                                            const isStudentAnswer = studentAnswer === i.toString();
+                                                            const isCorrectOption = question.correctOption === i.toString();
+                                                            return `
+                                                                <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
+                                                                    <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
+                                                                    <span class="flex-grow">${option}</span>
+                                                                    ${isStudentAnswer ? 
+                                                                        `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                                    ${isStudentAnswer && isCorrectOption ? 
+                                                                        `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                                    ${isStudentAnswer && !isCorrectOption ? 
+                                                                        `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                                </div>
+                                                            `;
+                                                        }).join('')}
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
+                                                    </div>
                                                 </div>
                                             `;
                                         } else if (question.type === 'tf') {
+                                            const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
+                                            const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
+                                            
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="space-y-2 mb-3">
-                                                    <div class="flex items-center">
-                                                        <input type="radio" name="q${index}" value="true" class="mr-2" 
-                                                            ${studentAnswer === 'true' ? 'checked' : ''} disabled>
-                                                        <span class="${question.correctAnswer === 'true' ? 'font-bold text-green-600' : ''}">Đúng</span>
-                                                        ${question.correctAnswer === 'true' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="space-y-2 mb-3">
+                                                        <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
+                                                            <span>Đúng</span>
+                                                            ${studentAnswer === 'true' ? 
+                                                                `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                            ${studentAnswer === 'true' && question.correctAnswer === 'true' ? 
+                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                            ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                                `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                        </div>
+                                                        <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
+                                                            <span>Sai</span>
+                                                            ${studentAnswer === 'false' ? 
+                                                                `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                            ${studentAnswer === 'false' && question.correctAnswer === 'false' ? 
+                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
+                                                            ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
+                                                                `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                        </div>
                                                     </div>
-                                                    <div class="flex items-center">
-                                                        <input type="radio" name="q${index}" value="false" class="mr-2" 
-                                                            ${studentAnswer === 'false' ? 'checked' : ''} disabled>
-                                                        <span class="${question.correctAnswer === 'false' ? 'font-bold text-green-600' : ''}">Sai</span>
-                                                        ${question.correctAnswer === 'false' ? '<i class="fas fa-check ml-2 text-green-600"></i>' : ''}
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${correctAnswerText}
                                                     </div>
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer === 'true' ? 'Đúng' : 'Sai'}
                                                 </div>
                                             `;
                                         } else if (question.type === 'sa') {
                                             questionHtml = `
-                                                <div class="flex justify-between items-center mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                    ${isCorrect ? '<span class="text-green-600"><i class="fas fa-check"></i> Đúng</span>' : ''}
-                                                </div>
-                                                <div class="mb-3">
-                                                    <p class="font-bold text-green-600">Đáp án đúng: ${question.correctAnswer}</p>
-                                                </div>
-                                                <div class="text-sm text-gray-600">
-                                                    <strong>Trả lời của thí sinh:</strong> ${studentAnswer || 'Không trả lời'}
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="mb-3">
+                                                        <p class="font-bold">Trả lời của thí sinh:</p>
+                                                        <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        <strong>Đáp án đúng:</strong> ${question.correctAnswer}
+                                                    </div>
+                                                    ${isCorrect ? 
+                                                        `<i class="fas fa-check correct-icon mt-2"></i>` : 
+                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>`
+                                                    }
                                                 </div>
                                             `;
                                         } else if (question.type === 'essay') {
                                             const manualScore = result.answers[index]?.manualScore || 0;
                                             questionHtml = `
-                                                <div class="mb-2">
-                                                    <h3 class="text-lg font-medium">Câu ${index + 1}: ${question.question}</h3>
-                                                </div>
-                                                <div class="bg-white p-3 border border-gray-300 rounded mb-3">
-                                                    <p class="whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
-                                                </div>
-                                                <div class="flex items-center mb-2">
-                                                    <label class="mr-3">Điểm:</label>
-                                                    <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
-                                                        class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}">
-                                                    <span class="ml-2">/ 1</span>
+                                                <div class="mb-4">
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <div class="mb-3">
+                                                        <p class="font-bold">Trả lời của thí sinh:</p>
+                                                        <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
+                                                    </div>
+                                                    <div class="flex items-center mb-2">
+                                                        <label class="mr-3">Điểm:</label>
+                                                        <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
+                                                            class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}">
+                                                        <span class="ml-2">/ 1</span>
+                                                    </div>
                                                 </div>
                                             `;
                                         }
@@ -947,12 +1011,6 @@
                 return answer === (question.correctOption || question.correctAnswer);
             }
             return false; // Essay questions need manual grading
-        }
-
-        // Get selected option text
-        function getSelectedOption(options, selectedIndex) {
-            const index = parseInt(selectedIndex);
-            return !isNaN(index) && options[index] ? options[index] : 'Không chọn';
         }
 
         // Get violation type text
