@@ -6,6 +6,9 @@
     <title>ANTI CHEAT - Trang chủ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Thêm Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <style>
         body {
             background-color: #f3f4f6;
@@ -47,11 +50,13 @@
                         <span class="font-bold text-xl">ANTI CHEAT</span>
                     </a>
                 </div>
-                <div class="hidden md:flex items-center space-x-1">
+                <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
+                    <!-- Menu sẽ được cập nhật động bằng JavaScript -->
                     <a href="home.html" class="px-3 py-2 active-menu-item">Trang chủ</a>
-                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng nhập</a>
-                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng ký</a>
-                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
+                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
                     <button id="mobile-menu-button" class="p-2 focus:outline-none">
@@ -61,11 +66,13 @@
             </div>
             <!-- Mobile menu -->
             <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
-                <div class="px-2 pt-2 pb-3 space-y-1">
-                    <a href="index.html" class="block px-3 py-2 active-menu-item">Trang chủ</a>
-                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng nhập</a>
-                    <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng ký</a>
-                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
+                <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
+                    <!-- Menu mobile sẽ được cập nhật động bằng JavaScript -->
+                    <a href="home.html" class="block px-3 py-2 active-menu-item">Trang chủ</a>
+                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-login-link">Đăng nhập</a>
+                    <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-logout-link">Đăng xuất</a>
                 </div>
             </div>
         </div>
@@ -78,7 +85,7 @@
             <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Hệ thống giám sát thi trực tuyến với công nghệ AI phát hiện gian lận hiệu quả</p>
             <div class="flex flex-col sm:flex-row justify-center gap-4">
                 <a href="exam.html" class="bg-white text-indigo-600 font-bold px-8 py-3 rounded-lg hover:bg-gray-100 transition">Thi ngay</a>
-                <a href="register.html" class="bg-indigo-800 text-white font-bold px-8 py-3 rounded-lg hover:bg-indigo-900 transition">Đăng ký tài khoản</a>
+                <a href="register.html" class="bg-indigo-800 text-white font-bold px-8 py-3 rounded-lg hover:bg-indigo-900 transition" id="register-button">Đăng ký tài khoản</a>
             </div>
         </div>
     </section>
@@ -154,6 +161,21 @@
     </section>
 
     <script>
+        // Cấu hình Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
+            authDomain: "anticheat-749d6.firebaseapp.com",
+            projectId: "anticheat-749d6",
+            storageBucket: "anticheat-749d6.appspot.com",
+            messagingSenderId: "417797975285",
+            appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
+            measurementId: "G-4EDKFS0CY6"
+        };
+
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
         // Mobile menu toggle
         const mobileMenuButton = document.getElementById('mobile-menu-button');
         const mobileMenu = document.getElementById('mobile-menu');
@@ -161,6 +183,64 @@
         mobileMenuButton.addEventListener('click', () => {
             mobileMenu.classList.toggle('open');
         });
+
+        // Theo dõi trạng thái đăng nhập
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Người dùng đã đăng nhập
+                updateMenuForLoggedInUser();
+            } else {
+                // Người dùng chưa đăng nhập
+                updateMenuForLoggedOutUser();
+            }
+        });
+
+        // Cập nhật menu khi đã đăng nhập
+        function updateMenuForLoggedInUser() {
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên desktop
+            document.getElementById('login-link').classList.add('hidden');
+            document.getElementById('register-link').classList.add('hidden');
+            document.getElementById('logout-link').classList.remove('hidden');
+            
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.add('hidden');
+            document.getElementById('mobile-register-link').classList.add('hidden');
+            document.getElementById('mobile-logout-link').classList.remove('hidden');
+            
+            // Ẩn nút đăng ký trong hero section
+            document.getElementById('register-button').classList.add('hidden');
+            
+            // Thêm sự kiện đăng xuất
+            document.getElementById('logout-link').addEventListener('click', signOut);
+            document.getElementById('mobile-logout-link').addEventListener('click', signOut);
+        }
+
+        // Cập nhật menu khi chưa đăng nhập
+        function updateMenuForLoggedOutUser() {
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên desktop
+            document.getElementById('login-link').classList.remove('hidden');
+            document.getElementById('register-link').classList.remove('hidden');
+            document.getElementById('logout-link').classList.add('hidden');
+            
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.remove('hidden');
+            document.getElementById('mobile-register-link').classList.remove('hidden');
+            document.getElementById('mobile-logout-link').classList.add('hidden');
+            
+            // Hiện nút đăng ký trong hero section
+            document.getElementById('register-button').classList.remove('hidden');
+        }
+
+        // Hàm đăng xuất
+        function signOut(e) {
+            e.preventDefault();
+            auth.signOut().then(() => {
+                // Đăng xuất thành công
+                window.location.href = 'home.html';
+            }).catch((error) => {
+                console.error('Lỗi khi đăng xuất:', error);
+            });
+        }
     </script>
 </body>
 </html>
