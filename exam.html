@@ -66,18 +66,38 @@
             width: 100%;
             height: 100%;
         }
-        .permission-request {
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9997;
+            flex-direction: column;
+        }
+        .permission-box {
+            border-left: 4px solid #4f46e5;
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
             0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.02); }
             100% { transform: scale(1); }
         }
     </style>
 </head>
 <body class="bg-gray-100">
-    <!-- Fullscreen warning -->
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="hidden">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mb-4"></div>
+        <p class="text-gray-700">Đang chuẩn bị bài thi...</p>
+    </div>
+
+    <!-- Fullscreen warning (chỉ hiện sau khi bắt đầu thi) -->
     <div id="fullscreen-warning" class="hidden">
         <div class="text-center p-6 max-w-md">
             <i class="fas fa-exclamation-triangle text-5xl text-yellow-400 mb-4"></i>
@@ -89,21 +109,9 @@
         </div>
     </div>
 
-    <!-- Camera warning -->
-    <div id="camera-warning" class="hidden">
-        <div class="text-center p-6 max-w-md">
-            <i class="fas fa-video-slash text-5xl text-red-400 mb-4"></i>
-            <h2 class="text-2xl font-bold mb-4">Yêu cầu camera</h2>
-            <p class="mb-6">Bạn cần bật camera để có thể tham gia thi. Vui lòng cho phép truy cập camera và đảm bảo camera không bị che.</p>
-            <button id="check-camera" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
-                Kiểm tra lại camera
-            </button>
-        </div>
-    </div>
-
     <!-- Camera preview -->
     <div id="camera-container" class="hidden">
-        <video id="camera-preview" autoplay muted></video>
+        <video id="camera-preview" autoplay muted playsinline></video>
         <canvas id="face-detection-overlay"></canvas>
     </div>
 
@@ -140,12 +148,12 @@
                     </div>
                     
                     <!-- Camera permission request -->
-                    <div id="camera-permission-request" class="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200 permission-request">
-                        <div class="flex items-center">
-                            <i class="fas fa-video text-blue-500 text-xl mr-3"></i>
+                    <div id="camera-permission-request" class="mt-6 bg-blue-50 p-4 rounded-lg permission-box">
+                        <div class="flex items-start">
+                            <i class="fas fa-video text-blue-500 text-xl mr-3 mt-1"></i>
                             <div>
-                                <h3 class="font-bold text-blue-800">Yêu cầu cấp quyền camera</h3>
-                                <p class="text-sm text-blue-700">Hệ thống sẽ tự động yêu cầu quyền truy cập camera khi bạn bắt đầu làm bài</p>
+                                <h3 class="font-bold text-blue-800">YÊU CẦU CẤP QUYỀN CAMERA</h3>
+                                <p class="text-sm text-blue-700 mt-1">Hệ thống sẽ tự động yêu cầu quyền truy cập camera khi bạn bấm "Bắt đầu thi". Vui lòng cho phép để tiếp tục.</p>
                             </div>
                         </div>
                     </div>
@@ -159,6 +167,7 @@
                             <li>Không được phép thoát khỏi chế độ toàn màn hình</li>
                             <li>Không được phép chuyển tab trình duyệt</li>
                             <li>Camera phải luôn bật và không bị che trong suốt quá trình thi</li>
+                            <li>Chỉ được phép có 1 người xuất hiện trong camera</li>
                         </ul>
                     </div>
                     
@@ -206,11 +215,10 @@
         const questionsContainer = document.getElementById('questions-container');
         const fullscreenWarning = document.getElementById('fullscreen-warning');
         const returnFullscreenBtn = document.getElementById('return-fullscreen');
-        const cameraWarning = document.getElementById('camera-warning');
-        const checkCameraBtn = document.getElementById('check-camera');
         const cameraContainer = document.getElementById('camera-container');
         const cameraPreview = document.getElementById('camera-preview');
         const faceDetectionOverlay = document.getElementById('face-detection-overlay');
+        const loadingOverlay = document.getElementById('loading-overlay');
         const cameraPermissionRequest = document.getElementById('camera-permission-request');
 
         // Exam variables
@@ -224,25 +232,22 @@
         let tabSwitchCount = 0;
         let fullscreenExitCount = 0;
         let lastVisibilityChangeTime = Date.now();
-        let cameraPermissionGranted = false;
+        let examStarted = false;
 
-        // Request camera permission when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            requestCameraPermission();
-        });
-
-        // Request camera permission
-        async function requestCameraPermission() {
+        // Load face-api.js models when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
             try {
-                // Just query to trigger permission prompt
-                await navigator.mediaDevices.getUserMedia({ video: true });
-                cameraPermissionGranted = true;
-                cameraPermissionRequest.classList.add('hidden');
+                loadingOverlay.classList.remove('hidden');
+                await loadFaceDetectionModels();
+                loadingOverlay.classList.add('hidden');
+                
+                // Tự động focus vào ô nhập mã đề thi
+                examCodeInput.focus();
             } catch (error) {
-                console.log('Camera permission not granted yet:', error);
-                // Permission request will show when user clicks "Start Exam"
+                console.error('Error loading face detection models:', error);
+                loadingOverlay.querySelector('p').textContent = 'Lỗi khi tải hệ thống giám sát';
             }
-        }
+        });
 
         // Load face-api.js models
         async function loadFaceDetectionModels() {
@@ -251,9 +256,10 @@
             await faceapi.nets.faceRecognitionNet.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
         }
 
-        // Initialize face detection
+        // Initialize face detection and camera
         async function initFaceDetection() {
             try {
+                // Tự động hiển thị popup yêu cầu quyền camera ngay khi bấm "Bắt đầu thi"
                 cameraStream = await navigator.mediaDevices.getUserMedia({
                     video: {
                         width: 640,
@@ -263,59 +269,118 @@
                     audio: false
                 });
                 
-                cameraPermissionGranted = true;
                 cameraPreview.srcObject = cameraStream;
                 cameraContainer.classList.remove('hidden');
-                cameraWarning.classList.add('hidden');
-                cameraPermissionRequest.classList.add('hidden');
                 
                 // Start face detection
                 faceDetectionInterval = setInterval(detectFaces, 1000);
+                return true;
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                cameraWarning.classList.remove('hidden');
-                throw error; // Re-throw to handle in startExam
+                // Hiển thị cảnh báo yêu cầu bật camera
+                showCameraWarning();
+                return false;
             }
+        }
+
+        // Show camera warning
+        function showCameraWarning() {
+            const warningHtml = `
+                <div id="camera-warning" class="fixed inset-0 bg-gray-600 bg-opacity-90 flex items-center justify-center z-9998">
+                    <div class="bg-white p-6 rounded-lg max-w-md text-center">
+                        <i class="fas fa-video-slash text-5xl text-red-500 mb-4"></i>
+                        <h2 class="text-2xl font-bold mb-4">YÊU CẦU CAMERA</h2>
+                        <p class="mb-6">Bạn cần cấp quyền truy cập camera để tham gia thi. Vui lòng bấm nút bên dưới để thử lại.</p>
+                        <div class="flex justify-center space-x-4">
+                            <button id="retry-camera" class="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+                                <i class="fas fa-sync-alt mr-2"></i>Thử lại
+                            </button>
+                            <button id="cancel-exam" class="bg-gray-200 text-gray-800 px-6 py-2 rounded-lg hover:bg-gray-300">
+                                Hủy bỏ
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const warningElement = document.createElement('div');
+            warningElement.innerHTML = warningHtml;
+            document.body.appendChild(warningElement);
+            
+            // Thêm event listeners cho các nút
+            document.getElementById('retry-camera').addEventListener('click', async () => {
+                warningElement.remove();
+                loadingOverlay.classList.remove('hidden');
+                const success = await initFaceDetection();
+                loadingOverlay.classList.add('hidden');
+                
+                if (success) {
+                    continueExamAfterCameraGranted();
+                }
+            });
+            
+            document.getElementById('cancel-exam').addEventListener('click', () => {
+                warningElement.remove();
+                resetExamState();
+            });
+        }
+
+        // Continue exam after camera is granted
+        function continueExamAfterCameraGranted() {
+            // Tiếp tục quy trình thi sau khi đã cấp quyền camera
+            loadingOverlay.classList.remove('hidden');
+            setTimeout(() => {
+                enterFullscreen().then(success => {
+                    if (success) {
+                        setupExamMonitoring();
+                        loadingOverlay.classList.add('hidden');
+                    } else {
+                        alert('Bạn cần cho phép chế độ toàn màn hình để tiếp tục làm bài');
+                        loadingOverlay.classList.add('hidden');
+                    }
+                });
+            }, 500);
         }
 
         // Detect faces in camera stream
         async function detectFaces() {
-            if (!cameraStream) return;
+            if (!cameraStream || !examStarted) return;
             
-            const displaySize = {
-                width: cameraPreview.videoWidth,
-                height: cameraPreview.videoHeight
-            };
-            
-            faceapi.matchDimensions(faceDetectionOverlay, displaySize);
-            
-            const detections = await faceapi.detectAllFaces(
-                cameraPreview,
-                new faceapi.TinyFaceDetectorOptions()
-            ).withFaceLandmarks();
-            
-            // Clear previous drawings
-            const context = faceDetectionOverlay.getContext('2d');
-            context.clearRect(0, 0, faceDetectionOverlay.width, faceDetectionOverlay.height);
-            
-            // Draw new detections
-            const resizedDetections = faceapi.resizeResults(detections, displaySize);
-            faceapi.draw.drawDetections(faceDetectionOverlay, resizedDetections);
-            faceapi.draw.drawFaceLandmarks(faceDetectionOverlay, resizedDetections);
-            
-            // Check for violations
-            if (detections.length === 0) {
-                // No face detected
-                recordViolation('no_face', 'Không có khuôn mặt nào được phát hiện trong camera');
-            } else if (detections.length > 1) {
-                // Multiple faces detected
-                recordViolation('multiple_faces', `Phát hiện ${detections.length} khuôn mặt trong camera`);
+            try {
+                const displaySize = {
+                    width: cameraPreview.videoWidth,
+                    height: cameraPreview.videoHeight
+                };
+                
+                faceapi.matchDimensions(faceDetectionOverlay, displaySize);
+                
+                const detections = await faceapi.detectAllFaces(
+                    cameraPreview,
+                    new faceapi.TinyFaceDetectorOptions()
+                ).withFaceLandmarks();
+                
+                // Clear previous drawings
+                const context = faceDetectionOverlay.getContext('2d');
+                context.clearRect(0, 0, faceDetectionOverlay.width, faceDetectionOverlay.height);
+                
+                // Draw new detections
+                const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                faceapi.draw.drawDetections(faceDetectionOverlay, resizedDetections);
+                faceapi.draw.drawFaceLandmarks(faceDetectionOverlay, resizedDetections);
+                
+                // Check for violations
+                if (detections.length === 0) {
+                    recordViolation('no_face', 'Không có khuôn mặt nào được phát hiện trong camera');
+                } else if (detections.length > 1) {
+                    recordViolation('multiple_faces', `Phát hiện ${detections.length} khuôn mặt trong camera`);
+                }
+            } catch (error) {
+                console.error('Face detection error:', error);
             }
         }
 
         // Record a violation
         function recordViolation(type, details) {
-            // Check if similar violation was recorded recently (within 5 seconds)
             const now = Date.now();
             const recentViolation = violations.find(v => 
                 v.type === type && 
@@ -324,7 +389,6 @@
             
             if (recentViolation) return;
             
-            // Capture screenshot
             captureScreenshot().then(screenshot => {
                 const violation = {
                     type,
@@ -338,7 +402,6 @@
                 
                 violations.push(violation);
                 
-                // Save to Firestore if exam is in progress
                 if (examId) {
                     db.collection('violations').add({
                         ...violation,
@@ -369,24 +432,24 @@
         }
 
         // Enter fullscreen mode
-        function enterFullscreen() {
+        async function enterFullscreen() {
             if (!document.fullscreenElement) {
-                return document.documentElement.requestFullscreen()
-                    .then(() => {
-                        console.log('Entered fullscreen successfully');
-                        return true;
-                    })
-                    .catch(err => {
-                        console.error('Error attempting to enable fullscreen:', err);
-                        recordViolation('fullscreen_denied', 'Người dùng từ chối chế độ toàn màn hình');
-                        return false;
-                    });
+                try {
+                    await document.documentElement.requestFullscreen();
+                    return true;
+                } catch (err) {
+                    console.error('Error attempting to enable fullscreen:', err);
+                    recordViolation('fullscreen_denied', 'Người dùng từ chối chế độ toàn màn hình');
+                    return false;
+                }
             }
-            return Promise.resolve(true);
+            return true;
         }
 
-        // Check fullscreen state
+        // Check fullscreen state (chỉ bắt đầu kiểm tra sau khi bắt đầu thi)
         function checkFullscreen() {
+            if (!examStarted) return;
+            
             if (!document.fullscreenElement) {
                 fullscreenExitCount++;
                 examContainer.classList.add('blurred');
@@ -398,16 +461,25 @@
             }
         }
 
-        // Check tab visibility
+        // Check tab visibility (chỉ bắt đầu kiểm tra sau khi bắt đầu thi)
         function handleVisibilityChange() {
+            if (!examStarted) return;
+            
             if (document.hidden) {
                 const now = Date.now();
-                if (now - lastVisibilityChangeTime > 1000) { // Prevent multiple events in short time
+                if (now - lastVisibilityChangeTime > 1000) {
                     tabSwitchCount++;
                     recordViolation('tab_switch', `Chuyển tab trình duyệt lần thứ ${tabSwitchCount}`);
                 }
                 lastVisibilityChangeTime = now;
             }
+        }
+
+        // Setup exam monitoring
+        function setupExamMonitoring() {
+            examStarted = true;
+            document.addEventListener('fullscreenchange', checkFullscreen);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
         }
 
         // Start exam timer
@@ -432,8 +504,7 @@
             const seconds = timeLeft % 60;
             timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            // Change color when time is running out
-            if (timeLeft <= 300) { // 5 minutes or less
+            if (timeLeft <= 300) {
                 timer.classList.add('bg-red-600');
                 timer.classList.remove('bg-indigo-800');
             }
@@ -491,6 +562,7 @@
 
         // Submit exam
         function submitExam() {
+            examStarted = false;
             clearInterval(timerInterval);
             clearInterval(faceDetectionInterval);
             
@@ -499,7 +571,6 @@
                 cameraContainer.classList.add('hidden');
             }
             
-            // Remove event listeners
             document.removeEventListener('fullscreenchange', checkFullscreen);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             
@@ -514,7 +585,7 @@
                 });
             });
             
-            // Calculate score (simple implementation)
+            // Calculate score
             const score = answers.reduce((total, answer, index) => {
                 const question = examData.questions[index];
                 if (!answer.answer) return total;
@@ -530,7 +601,7 @@
             const totalQuestions = examData.questions.length;
             const percentage = Math.round((score / totalQuestions) * 100);
             
-            // Save results to Firestore if user is logged in
+            // Save results
             if (auth.currentUser) {
                 db.collection('exam_results').add({
                     examId,
@@ -587,8 +658,36 @@
             `;
         }
 
+        // Reset exam state
+        function resetExamState() {
+            examStarted = false;
+            clearInterval(timerInterval);
+            clearInterval(faceDetectionInterval);
+            
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            
+            cameraContainer.classList.add('hidden');
+            examContent.classList.add('hidden');
+            examCodeSection.classList.remove('hidden');
+            submitExamBtn.classList.add('hidden');
+            submitExamBottomBtn.classList.add('hidden');
+            
+            document.removeEventListener('fullscreenchange', checkFullscreen);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            
+            // Exit fullscreen if in fullscreen mode
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => {
+                    console.error('Error exiting fullscreen:', err);
+                });
+            }
+        }
+
         // Start exam process
-        async function startExam() {
+        async function startExamProcess() {
             const examCode = examCodeInput.value.trim();
             
             if (!examCode) {
@@ -597,17 +696,14 @@
             }
             
             try {
-                // 1. Load face detection models
-                await loadFaceDetectionModels();
+                loadingOverlay.classList.remove('hidden');
                 
-                // 2. Initialize camera and face detection
-                await initFaceDetection();
-                
-                // 3. Find exam by code
+                // 1. Tìm đề thi theo mã
                 const examsQuery = db.collection('exams').where('code', '==', examCode).limit(1);
                 const querySnapshot = await examsQuery.get();
                 
                 if (querySnapshot.empty) {
+                    loadingOverlay.classList.add('hidden');
                     alert('Mã dự thi không hợp lệ');
                     return;
                 }
@@ -615,37 +711,47 @@
                 querySnapshot.forEach(doc => {
                     examData = doc.data();
                     examId = doc.id;
-                    
-                    // 4. Update UI
-                    examName.textContent = examData.name;
-                    examCodeSection.classList.add('hidden');
-                    examContent.classList.remove('hidden');
-                    submitExamBtn.classList.remove('hidden');
-                    submitExamBottomBtn.classList.remove('hidden');
-                    
-                    // 5. Load questions
-                    loadExamQuestions();
-                    
-                    // 6. Start timer
-                    startTimer(examData.time);
-                    
-                    // 7. Enter fullscreen mode
-                    const fullscreenSuccess = await enterFullscreen();
-                    if (!fullscreenSuccess) {
-                        alert('Bạn cần cho phép chế độ toàn màn hình để tiếp tục làm bài');
-                        return;
-                    }
-                    
-                    // 8. Set up event listeners for fullscreen and visibility changes
-                    document.addEventListener('fullscreenchange', checkFullscreen);
-                    document.addEventListener('visibilitychange', handleVisibilityChange);
                 });
+                
+                // 2. Khởi tạo camera (sẽ tự động hiển thị popup yêu cầu quyền)
+                const cameraSuccess = await initFaceDetection();
+                if (!cameraSuccess) {
+                    // Nếu không cấp quyền camera, hàm initFaceDetection đã hiển thị cảnh báo
+                    loadingOverlay.classList.add('hidden');
+                    return;
+                }
+                
+                // 3. Cập nhật giao diện
+                examName.textContent = examData.name;
+                examCodeSection.classList.add('hidden');
+                examContent.classList.remove('hidden');
+                submitExamBtn.classList.remove('hidden');
+                submitExamBottomBtn.classList.remove('hidden');
+                
+                // 4. Tải câu hỏi
+                loadExamQuestions();
+                
+                // 5. Bắt đầu tính giờ
+                startTimer(examData.time);
+                
+                // 6. Vào chế độ toàn màn hình
+                const fullscreenSuccess = await enterFullscreen();
+                if (!fullscreenSuccess) {
+                    loadingOverlay.classList.add('hidden');
+                    alert('Bạn cần cho phép chế độ toàn màn hình để tiếp tục làm bài');
+                    return;
+                }
+                
+                // 7. Bắt đầu giám sát
+                setupExamMonitoring();
+                
+                loadingOverlay.classList.add('hidden');
             } catch (error) {
-                console.error('Error starting exam:', error);
+                console.error('Error in exam process:', error);
+                loadingOverlay.classList.add('hidden');
                 
                 if (error.name === 'NotAllowedError') {
-                    alert('Bạn cần cấp quyền truy cập camera để tham gia thi');
-                    cameraWarning.classList.remove('hidden');
+                    showCameraWarning();
                 } else {
                     alert('Có lỗi xảy ra khi bắt đầu bài thi: ' + error.message);
                 }
@@ -657,30 +763,27 @@
             enterFullscreen();
         });
 
-        checkCameraBtn.addEventListener('click', () => {
-            initFaceDetection().catch(error => {
-                console.error('Error initializing camera:', error);
-            });
-        });
-
         startExamBtn.addEventListener('click', () => {
-            startExam().catch(error => {
-                console.error('Error in start exam process:', error);
+            startExamProcess().catch(error => {
+                console.error('Error in exam process:', error);
             });
         });
 
         submitExamBtn.addEventListener('click', submitExam);
         submitExamBottomBtn.addEventListener('click', submitExam);
 
-        // Check if user is logged in (optional)
+        // Check auth state
         auth.onAuthStateChanged(user => {
-            // You can use this to personalize the experience
-            // For this demo, we allow anonymous users to take exams
+            // Optional: personalize experience for logged in users
         });
 
-        // Initialize face detection models when page loads
-        loadFaceDetectionModels().catch(error => {
-            console.error('Error loading face detection models:', error);
+        // Handle Enter key in exam code input
+        examCodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                startExamProcess().catch(error => {
+                    console.error('Error in exam process:', error);
+                });
+            }
         });
     </script>
 </body>
