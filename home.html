@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANTI CHEAT - Trang chủ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="index.html" class="flex items-center space-x-2">
+                        <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
+                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-8">
+                    <a href="home.html" class="text-indigo-600 font-medium">Trang chủ</a>
+                    <a href="exam-management.html" class="text-gray-600 hover:text-indigo-600 transition">Quản lý đề thi</a>
+                    <a href="exam.html" class="text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <button id="logout-btn" class="text-gray-600 hover:text-indigo-600 transition">Đăng xuất</button>
+                </div>
+                <div class="md:hidden">
+                    <button class="mobile-menu-button p-2 focus:outline-none">
+                        <i class="fas fa-bars text-gray-600 text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold">Xin chào, <span id="user-name">Người dùng</span></h1>
+        </div>
+        
+        <div class="grid md:grid-cols-2 gap-8 mb-8">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow-md p-6 card">
+                <h2 class="text-xl font-bold mb-4">Hành động nhanh</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <a href="exam-management.html" class="bg-indigo-50 text-indigo-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-indigo-100 transition">
+                        <i class="fas fa-plus-circle text-2xl mb-2"></i>
+                        <span>Tạo đề thi mới</span>
+                    </a>
+                    <a href="exam.html" class="bg-blue-50 text-blue-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-blue-100 transition">
+                        <i class="fas fa-pen-alt text-2xl mb-2"></i>
+                        <span>Thi trực tuyến</span>
+                    </a>
+                    <a href="exam-management.html" class="bg-green-50 text-green-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-green-100 transition">
+                        <i class="fas fa-clipboard-list text-2xl mb-2"></i>
+                        <span>Xem đề thi</span>
+                    </a>
+                    <a href="exam-management.html" class="bg-purple-50 text-purple-700 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-purple-100 transition">
+                        <i class="fas fa-exclamation-triangle text-2xl mb-2"></i>
+                        <span>Vi phạm</span>
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Recent Exams -->
+            <div class="bg-white rounded-lg shadow-md p-6 card">
+                <h2 class="text-xl font-bold mb-4">Đề thi gần đây</h2>
+                <div id="recent-exams" class="space-y-4">
+                    <div class="text-center py-4 text-gray-500">Đang tải...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Results -->
+        <div class="bg-white rounded-lg shadow-md p-6 card mb-8">
+            <h2 class="text-xl font-bold mb-4">Kết quả thi gần đây</h2>
+            <div id="recent-results" class="space-y-4">
+                <div class="text-center py-4 text-gray-500">Đang tải...</div>
+            </div>
+        </div>
+        
+        <!-- Statistics -->
+        <div class="grid md:grid-cols-3 gap-8">
+            <div class="bg-white rounded-lg shadow-md p-6 card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Tổng đề thi</p>
+                        <p id="total-exams" class="text-2xl font-bold">--</p>
+                    </div>
+                    <div class="bg-indigo-100 p-3 rounded-full">
+                        <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6 card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Tổng vi phạm</p>
+                        <p id="total-violations" class="text-2xl font-bold">--</p>
+                    </div>
+                    <div class="bg-red-100 p-3 rounded-full">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow-md p-6 card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500">Điểm trung bình</p>
+                        <p id="average-score" class="text-2xl font-bold">--</p>
+                    </div>
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-chart-line text-green-600 text-xl"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="mb-4 md:mb-0">
+                    <a href="index.html" class="flex items-center space-x-2">
+                        <i class="fas fa-shield-alt text-indigo-400 text-2xl"></i>
+                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                    </a>
+                    <p class="text-gray-400 mt-1">Giải pháp chống gian lận thi cử</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-facebook-f"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-twitter"></i></a>
+                    <a href="#" class="text-gray-400 hover:text-white transition"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400">
+                <p>© 2023 ANTI CHEAT. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
+            authDomain: "anticheat-749d6.firebaseapp.com",
+            projectId: "anticheat-749d6",
+            storageBucket: "anticheat-749d6.firebasestorage.app",
+            messagingSenderId: "417797975285",
+            appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
+            measurementId: "G-4EDKFS0CY6"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // DOM elements
+        const logoutBtn = document.getElementById('logout-btn');
+        const userName = document.getElementById('user-name');
+        const recentExams = document.getElementById('recent-exams');
+        const recentResults = document.getElementById('recent-results');
+        const totalExams = document.getElementById('total-exams');
+        const totalViolations = document.getElementById('total-violations');
+        const averageScore = document.getElementById('average-score');
+
+        // Check auth state
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // Load user data
+                db.collection('users').doc(user.uid).get()
+                    .then(doc => {
+                        if (doc.exists) {
+                            const userData = doc.data();
+                            userName.textContent = userData.name;
+                        }
+                    });
+                
+                // Load recent exams
+                loadRecentExams(user.uid);
+                
+                // Load recent results
+                loadRecentResults(user.uid);
+                
+                // Load statistics
+                loadStatistics(user.uid);
+            } else {
+                window.location.href = 'login.html';
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                window.location.href = 'login.html';
+            });
+        });
+
+        // Load recent exams
+        function loadRecentExams(userId) {
+            recentExams.innerHTML = '<div class="text-center py-4 text-gray-500">Đang tải...</div>';
+            
+            db.collection('exams')
+                .where('createdBy', '==', userId)
+                .orderBy('createdAt', 'desc')
+                .limit(3)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        recentExams.innerHTML = '<div class="text-center py-4 text-gray-500">Bạn chưa có đề thi nào</div>';
+                        return;
+                    }
+                    
+                    recentExams.innerHTML = '';
+                    
+                    querySnapshot.forEach(doc => {
+                        const exam = doc.data();
+                        
+                        const examElement = document.createElement('div');
+                        examElement.className = 'flex justify-between items-center p-3 border-b border-gray-100';
+                        examElement.innerHTML = `
+                            <div>
+                                <h3 class="font-medium">${exam.name}</h3>
+                                <p class="text-sm text-gray-500">${exam.questions.length} câu hỏi • ${exam.time} phút</p>
+                            </div>
+                            <div class="text-sm font-mono bg-gray-100 px-2 py-1 rounded">${exam.code}</div>
+                        `;
+                        
+                        recentExams.appendChild(examElement);
+                    });
+                    
+                    // Add view all link
+                    const viewAll = document.createElement('a');
+                    viewAll.href = 'exam-management.html';
+                    viewAll.className = 'block text-center mt-4 text-indigo-600 hover:text-indigo-800 text-sm';
+                    viewAll.textContent = 'Xem tất cả đề thi';
+                    recentExams.appendChild(viewAll);
+                })
+                .catch(error => {
+                    console.error('Error loading recent exams:', error);
+                    recentExams.innerHTML = '<div class="text-center py-4 text-red-500">Có lỗi xảy ra khi tải đề thi</div>';
+                });
+        }
+
+        // Load recent results
+        function loadRecentResults(userId) {
+            recentResults.innerHTML = '<div class="text-center py-4 text-gray-500">Đang tải...</div>';
+            
+            db.collection('exam_results')
+                .where('studentId', '==', userId)
+                .orderBy('submittedAt', 'desc')
+                .limit(3)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        recentResults.innerHTML = '<div class="text-center py-4 text-gray-500">Bạn chưa có kết quả thi nào</div>';
+                        return;
+                    }
+                    
+                    recentResults.innerHTML = '';
+                    
+                    querySnapshot.forEach(doc => {
+                        const result = doc.data();
+                        
+                        // Get exam name
+                        db.collection('exams').doc(result.examId).get()
+                            .then(examDoc => {
+                                const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
+                                
+                                const resultElement = document.createElement('div');
+                                resultElement.className = 'flex justify-between items-center p-3 border-b border-gray-100';
+                                resultElement.innerHTML = `
+                                    <div>
+                                        <h3 class="font-medium">${examName}</h3>
+                                        <p class="text-sm text-gray-500">${result.score}/${result.totalQuestions} câu đúng</p>
+                                    </div>
+                                    <div class="text-lg font-bold ${result.percentage >= 50 ? 'text-green-600' : 'text-red-600'}">
+                                        ${result.percentage}%
+                                    </div>
+                                `;
+                                
+                                recentResults.appendChild(resultElement);
+                            });
+                    });
+                    
+                    // Add view all link
+                    const viewAll = document.createElement('a');
+                    viewAll.href = 'exam-management.html';
+                    viewAll.className = 'block text-center mt-4 text-indigo-600 hover:text-indigo-800 text-sm';
+                    viewAll.textContent = 'Xem tất cả kết quả';
+                    recentResults.appendChild(viewAll);
+                })
+                .catch(error => {
+                    console.error('Error loading recent results:', error);
+                    recentResults.innerHTML = '<div class="text-center py-4 text-red-500">Có lỗi xảy ra khi tải kết quả</div>';
+                });
+        }
+
+        // Load statistics
+        function loadStatistics(userId) {
+            // Total exams
+            db.collection('exams')
+                .where('createdBy', '==', userId)
+                .get()
+                .then(querySnapshot => {
+                    totalExams.textContent = querySnapshot.size;
+                });
+            
+            // Total violations
+            db.collection('violations')
+                .where('teacherId', '==', userId)
+                .get()
+                .then(querySnapshot => {
+                    totalViolations.textContent = querySnapshot.size;
+                });
+            
+            // Average score
+            db.collection('exam_results')
+                .where('studentId', '==', userId)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        averageScore.textContent = 'N/A';
+                        return;
+                    }
+                    
+                    let total = 0;
+                    let count = 0;
+                    
+                    querySnapshot.forEach(doc => {
+                        const result = doc.data();
+                        total += result.percentage;
+                        count++;
+                    });
+                    
+                    const avg = Math.round(total / count);
+                    averageScore.textContent = `${avg}%`;
+                });
+        }
+    </script>
+</body>
+</html>
