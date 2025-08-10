@@ -49,6 +49,9 @@
         .graded-result {
             background-color: #dcfce7;
         }
+        .ungraded-result {
+            background-color: #fee2e2;
+        }
         .correct-icon {
             color: #22c55e;
         }
@@ -82,6 +85,13 @@
         }
         .modal {
             transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .student-photo {
+            width: 150px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 2px solid #ddd;
         }
     </style>
 </head>
@@ -358,7 +368,7 @@
                 </button>
             </div>
             
-            <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                     <p><strong>Thí sinh:</strong> <span id="result-student-name"></span></p>
                     <p><strong>Đề thi:</strong> <span id="result-exam-name"></span></p>
@@ -368,6 +378,9 @@
                     <p><strong>Thời gian làm bài:</strong> <span id="result-exam-duration"></span> giây</p>
                     <p><strong>Số lần vi phạm:</strong> <span id="result-violations"></span></p>
                     <p><strong>Điểm tự động:</strong> <span id="result-auto-score"></span></p>
+                </div>
+                <div class="flex justify-center">
+                    <img id="result-student-photo" src="" alt="Ảnh thí sinh" class="student-photo">
                 </div>
             </div>
             
@@ -454,6 +467,7 @@
         const closeViolationModal = document.getElementById('close-violation-modal');
         const closeViolationModalBtn = document.getElementById('close-violation-modal-btn');
         const violationDetails = document.getElementById('violation-details');
+        const resultStudentPhoto = document.getElementById('result-student-photo');
         
         // Create exam modal elements
         const createExamBtn = document.getElementById('create-exam-btn');
@@ -639,7 +653,15 @@
                 
                 // Generate QR code
                 qrcodeDiv.innerHTML = '';
-                QRCode.toCanvas(qrcodeDiv, examCode, { width: 200 }, (error) => {
+                QRCode.toCanvas(qrcodeDiv, examCode, { 
+                    width: 200,
+                    errorCorrectionLevel: 'H', // High error correction
+                    margin: 2,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
+                    }
+                }, (error) => {
                     if (error) console.error(error);
                 });
                 
@@ -794,7 +816,28 @@
                                         const totalQuestions = examDoc.exists ? examDoc.data().questions.length : 0;
                                         
                                         const row = document.createElement('tr');
-                                        row.className = result.status === 'pending' ? 'pending-result' : 'graded-result';
+                                        
+                                        // Determine row class based on status
+                                        if (result.status === 'pending') {
+                                            row.className = 'pending-result';
+                                        } else if (result.status === 'graded') {
+                                            row.className = 'graded-result';
+                                        } else {
+                                            // Check if there are essay questions that need grading
+                                            const hasEssayQuestions = examDoc.exists && 
+                                                examDoc.data().questions.some(q => q.type === 'essay');
+                                            const hasUngradedEssay = hasEssayQuestions && 
+                                                result.answers.some((a, i) => 
+                                                    examDoc.data().questions[i].type === 'essay' && 
+                                                    (a.manualScore === null || a.manualScore === undefined)
+                                                );
+                                            
+                                            if (hasUngradedEssay) {
+                                                row.className = 'ungraded-result';
+                                            } else {
+                                                row.className = result.status === 'pending' ? 'pending-result' : 'graded-result';
+                                            }
+                                        }
                                         
                                         row.innerHTML = `
                                             <td class="px-6 py-4 whitespace-nowrap">
@@ -807,33 +850,23 @@
                                                 <div class="text-gray-900">${result.submittedAt.toDate().toLocaleString()}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${result.score || 0}/${totalQuestions}</div>
+                                                <div class="text-gray-900">${result.finalScore || result.score || 0}/${totalQuestions}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${result.status === 'pending' ? 'Chờ chấm' : 'Đã chấm'}</div>
+                                                <div class="text-gray-900">${getResultStatus(result, examDoc.data())}</div>
                                             </td>
                                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                ${result.status === 'pending' ? 
-                                                    `<button class="text-indigo-600 hover:text-indigo-900 grade-exam" data-id="${resultId}">Chấm bài</button>` : 
-                                                    `<button class="text-indigo-600 hover:text-indigo-900 view-result" data-id="${resultId}">Xem</button>`
-                                                }
+                                                <button class="text-indigo-600 hover:text-indigo-900 grade-exam" data-id="${resultId}">Xem/Chấm</button>
                                             </td>
                                         `;
                                         
                                         resultsList.appendChild(row);
                                         
                                         // Add event listener
-                                        if (result.status === 'pending') {
-                                            row.querySelector('.grade-exam').addEventListener('click', e => {
-                                                const resultId = e.target.getAttribute('data-id');
-                                                gradeExam(resultId);
-                                            });
-                                        } else {
-                                            row.querySelector('.view-result').addEventListener('click', e => {
-                                                const resultId = e.target.getAttribute('data-id');
-                                                viewExamResult(resultId);
-                                            });
-                                        }
+                                        row.querySelector('.grade-exam').addEventListener('click', e => {
+                                            const resultId = e.target.getAttribute('data-id');
+                                            gradeExam(resultId);
+                                        });
                                     });
                             });
                     });
@@ -844,71 +877,22 @@
                 });
         }
 
-        // Load violations
-        function loadViolations() {
-            violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Đang tải vi phạm...</td></tr>';
+        // Get result status text
+        function getResultStatus(result, examData) {
+            if (result.status === 'pending') return 'Chờ chấm';
+            if (result.status === 'graded') return 'Đã chấm';
             
-            db.collection('violations')
-                .where('teacherId', '==', currentUser.uid)
-                .orderBy('timestamp', 'desc')
-                .limit(10)
-                .get()
-                .then(querySnapshot => {
-                    if (querySnapshot.empty) {
-                        violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Không có vi phạm nào</td></tr>';
-                        return;
-                    }
-                    
-                    violationsList.innerHTML = '';
-                    
-                    querySnapshot.forEach(doc => {
-                        const violation = doc.data();
-                        const violationId = doc.id;
-                        
-                        // Get student name
-                        db.collection('users').doc(violation.studentId).get()
-                            .then(studentDoc => {
-                                const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
-                                
-                                // Get exam name
-                                db.collection('exams').doc(violation.examId).get()
-                                    .then(examDoc => {
-                                        const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
-                                        
-                                        const row = document.createElement('tr');
-                                        row.innerHTML = `
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="font-medium text-gray-900">${studentName}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${examName}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${getViolationType(violation.type)}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap">
-                                                <div class="text-gray-900">${violation.timestamp.toDate().toLocaleString()}</div>
-                                            </td>
-                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button class="text-indigo-600 hover:text-indigo-900 view-violation" data-id="${violationId}">Xem</button>
-                                            </td>
-                                        `;
-                                        
-                                        violationsList.appendChild(row);
-                                        
-                                        // Add event listener
-                                        row.querySelector('.view-violation').addEventListener('click', e => {
-                                            const violationId = e.target.getAttribute('data-id');
-                                            viewViolation(violationId);
-                                        });
-                                    });
-                            });
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading violations:', error);
-                    violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải vi phạm</td></tr>';
-                });
+            // Check for ungraded essay questions
+            if (examData && examData.questions) {
+                const hasUngradedEssay = examData.questions.some((q, i) => 
+                    q.type === 'essay' && 
+                    (result.answers[i]?.manualScore === null || result.answers[i]?.manualScore === undefined)
+                );
+                
+                if (hasUngradedEssay) return 'Chưa chấm tự luận';
+            }
+            
+            return 'Đã chấm';
         }
 
         // View exam
@@ -965,6 +949,14 @@
                                     document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
                                     document.getElementById('result-total-score').textContent = result.finalScore || result.score || 0;
                                     document.getElementById('result-max-score').textContent = currentExamData.questions.length;
+                                    
+                                    // Show student photo if available
+                                    if (result.studentPhoto) {
+                                        resultStudentPhoto.src = result.studentPhoto;
+                                        resultStudentPhoto.style.display = 'block';
+                                    } else {
+                                        resultStudentPhoto.style.display = 'none';
+                                    }
                                     
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
@@ -1132,6 +1124,14 @@
                                     document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
                                     document.getElementById('result-total-score').textContent = result.score || 0;
                                     document.getElementById('result-max-score').textContent = currentExamData.questions.length;
+                                    
+                                    // Show student photo if available
+                                    if (result.studentPhoto) {
+                                        resultStudentPhoto.src = result.studentPhoto;
+                                        resultStudentPhoto.style.display = 'block';
+                                    } else {
+                                        resultStudentPhoto.style.display = 'none';
+                                    }
                                     
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
@@ -1349,6 +1349,7 @@
             let totalScore = parseInt(currentExamResult.score) || 0;
             const scoreInputs = document.querySelectorAll('.score-input');
             const answers = [...currentExamResult.answers];
+            let allEssayGraded = true;
             
             // Calculate total score (add manual scores for essay questions)
             scoreInputs.forEach(input => {
@@ -1362,12 +1363,20 @@
                         manualScore: score
                     };
                     totalScore += score;
+                    
+                    // Check if all essay questions are graded
+                    if (score === null || score === undefined) {
+                        allEssayGraded = false;
+                    }
                 }
             });
             
+            // Determine status
+            const status = allEssayGraded ? 'graded' : 'pending';
+            
             // Update result in Firestore
             db.collection('exam_results').doc(currentResultId).update({
-                status: 'graded',
+                status: status,
                 answers: answers,
                 finalScore: totalScore,
                 gradedAt: firebase.firestore.FieldValue.serverTimestamp()
