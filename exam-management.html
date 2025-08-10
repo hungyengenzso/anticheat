@@ -650,7 +650,7 @@
                         type,
                         question,
                         options,
-                        correctOption
+                        correctOption: correctOption.toString() // Đảm bảo correctOption là string
                     });
                 } else if (type === 'tf') {
                     const correctAnswer = block.querySelector('input[name="tf-answer"]:checked').value;
@@ -1104,8 +1104,8 @@
                                                     <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
                                                     <div class="space-y-2 mb-3">
                                                         ${question.options.map((option, i) => {
-                                                            const isStudentAnswer = studentAnswer === i.toString();
-                                                            const isCorrectOption = question.correctOption === i.toString();
+                                                            const isStudentAnswer = String(studentAnswer) === String(i); // So sánh dạng string
+                                                            const isCorrectOption = String(question.correctOption) === String(i); // So sánh dạng string
                                                             return `
                                                                 <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
                                                                     <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
@@ -1291,8 +1291,8 @@
                                                     <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
                                                     <div class="space-y-2 mb-3">
                                                         ${question.options.map((option, i) => {
-                                                            const isStudentAnswer = studentAnswer === i.toString();
-                                                            const isCorrectOption = question.correctOption === i.toString();
+                                                            const isStudentAnswer = String(studentAnswer) === String(i); // So sánh dạng string
+                                                            const isCorrectOption = String(question.correctOption) === String(i); // So sánh dạng string
                                                             return `
                                                                 <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
                                                                     <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
@@ -1400,10 +1400,11 @@
                 });
         }
 
-        // Check if answer is correct
+        // Check if answer is correct (FIXED VERSION)
         function checkAnswerCorrect(question, answer) {
             if (question.type === 'mcq') {
-                return answer === question.correctOption;
+                // Chuyển cả hai về string để so sánh
+                return String(answer) === String(question.correctOption);
             } else if (question.type === 'tf') {
                 return answer === question.correctAnswer;
             } else if (question.type === 'sa') {
