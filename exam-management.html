@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -399,8 +400,14 @@
             
             <div class="border-t border-b border-gray-200 py-4 mb-4">
                 <div class="flex justify-between items-center">
-                    <p><strong>Tổng điểm:</strong></p>
-                    <p class="text-xl font-bold"><span id="result-total-score">0</span>/<span id="result-max-score">0</span></p>
+                    <div>
+                        <p><strong>Tổng điểm:</strong></p>
+                        <div class="flex items-center mt-1">
+                            <input type="number" id="result-total-score-input" min="0" step="0.1" class="w-20 px-2 py-1 border border-gray-300 rounded">
+                            <span class="ml-2">/ <span id="result-max-score">0</span></span>
+                        </div>
+                    </div>
+                    <p class="text-xl font-bold hidden"><span id="result-total-score">0</span>/<span id="result-max-score">0</span></p>
                 </div>
             </div>
             
@@ -515,6 +522,7 @@
         const cancelExport = document.getElementById('cancel-export');
         const confirmExport = document.getElementById('confirm-export');
         const exportExamSelect = document.getElementById('export-exam-select');
+        const resultTotalScoreInput = document.getElementById('result-total-score-input');
         
         // Create exam modal elements
         const createExamBtn = document.getElementById('create-exam-btn');
@@ -1092,8 +1100,9 @@
                                         const studentAnswer = result.answers[index]?.answer || '';
                                         const isCorrect = checkAnswerCorrect(question, studentAnswer);
                                         
+                                        // Remove background color for essay questions
                                         questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
-                                            isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                            question.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
                                         }`;
                                         
                                         let questionHtml = '';
@@ -1209,7 +1218,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading exam result:', error);
-                    alert('Có lỗi xảy ra khi tải kết quả bài thi');
+                    alert('Có lỗi xảy ra khi xem kết quả bài thi');
                 });
         }
 
@@ -1242,16 +1251,6 @@
                                 .then(studentDoc => {
                                     const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
                                     
-                                    // Calculate total score (auto score + manual scores for essays)
-                                    let totalScore = result.score || 0; // Start with auto score
-                                    if (result.answers) {
-                                        currentExamData.questions.forEach((q, i) => {
-                                            if (q.type === 'essay') {
-                                                totalScore += result.answers[i]?.manualScore || 0;
-                                            }
-                                        });
-                                    }
-                                    
                                     // Update modal info
                                     document.getElementById('result-modal-title').textContent = `Chấm bài thi: ${currentExamData.name}`;
                                     document.getElementById('result-student-name').textContent = studentName;
@@ -1260,8 +1259,11 @@
                                     document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
                                     document.getElementById('result-violations').textContent = result.violations || 0;
                                     document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
-                                    document.getElementById('result-total-score').textContent = totalScore;
                                     document.getElementById('result-max-score').textContent = currentExamData.questions.length;
+                                    
+                                    // Set total score input
+                                    resultTotalScoreInput.value = result.finalScore || result.score || 0;
+                                    resultTotalScoreInput.max = currentExamData.questions.length;
                                     
                                     // Show student photo if available
                                     if (result.studentPhoto) {
@@ -1279,8 +1281,9 @@
                                         const studentAnswer = result.answers[index]?.answer || '';
                                         const isCorrect = checkAnswerCorrect(question, studentAnswer);
                                         
+                                        // Remove background color for essay questions
                                         questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
-                                            isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                            question.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
                                         }`;
                                         
                                         let questionHtml = '';
@@ -1491,38 +1494,23 @@
 
         // Save exam result
         function saveExamResult() {
-            let totalScore = parseInt(currentExamResult.score) || 0;
-            const scoreInputs = document.querySelectorAll('.score-input');
-            const answers = [...currentExamResult.answers];
-            let allEssayGraded = true;
+            const maxScore = parseInt(document.getElementById('result-max-score').textContent);
+            const totalScore = parseFloat(resultTotalScoreInput.value);
             
-            // Calculate total score (add manual scores for essay questions)
-            scoreInputs.forEach(input => {
-                const index = parseInt(input.getAttribute('data-index'));
-                const score = parseFloat(input.value) || 0;
-                
-                // Update manual score for essay questions
-                if (currentExamData.questions[index].type === 'essay') {
-                    answers[index] = {
-                        ...answers[index],
-                        manualScore: score
-                    };
-                    totalScore += score;
-                    
-                    // Check if all essay questions are graded
-                    if (score === null || score === undefined) {
-                        allEssayGraded = false;
-                    }
-                }
-            });
+            // Validate total score
+            if (isNaN(totalScore)) {
+                alert('Vui lòng nhập điểm tổng hợp hợp lệ');
+                return;
+            }
             
-            // Determine status
-            const status = allEssayGraded ? 'graded' : 'pending';
+            if (totalScore > maxScore) {
+                alert(`Điểm tổng hợp không được vượt quá ${maxScore}`);
+                return;
+            }
             
             // Update result in Firestore
             db.collection('exam_results').doc(currentResultId).update({
-                status: status,
-                answers: answers,
+                status: 'graded',
                 finalScore: totalScore,
                 gradedAt: firebase.firestore.FieldValue.serverTimestamp()
             })
@@ -1592,6 +1580,16 @@
                                 // Create workbook
                                 const wb = XLSX.utils.book_new();
                                 const ws = XLSX.utils.json_to_sheet(results);
+                                
+                                // Set column widths
+                                ws['!cols'] = [
+                                    { width: 4 }, // STT
+                                    { width: 25 }, // Tên thí sinh
+                                    { width: 7 },  // Điểm
+                                    { width: 20 }, // Ngày thi
+                                    { width: 20 }  // Trạng thái
+                                ];
+                                
                                 XLSX.utils.book_append_sheet(wb, ws, "Kết quả");
                                 
                                 // Generate file name
