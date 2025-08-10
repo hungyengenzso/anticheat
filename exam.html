@@ -125,6 +125,32 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
+        #photo-container {
+            margin: 20px auto;
+            width: 300px;
+            height: 200px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        #photo-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #capture-btn {
+            margin-top: 10px;
+            background-color: #4f46e5;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #canvas {
+            display: none;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -192,6 +218,29 @@
         <button id="start-camera-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
             <i class="fas fa-camera mr-2"></i>Bắt đầu kiểm tra
         </button>
+    </div>
+
+    <!-- Photo Capture Section -->
+    <div id="photo-section" class="hidden">
+        <div class="max-w-4xl mx-auto px-4 py-8">
+            <div class="bg-white shadow rounded-lg p-6 mb-8 text-center">
+                <h1 class="text-2xl font-bold mb-4">Xác thực thí sinh</h1>
+                <p class="mb-4">Vui lòng chụp ảnh chân dung để xác minh danh tính trước khi bắt đầu làm bài</p>
+                
+                <div id="photo-container">
+                    <video id="photo-preview" autoplay muted playsinline></video>
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <button id="capture-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                    <i class="fas fa-camera mr-2"></i>Chụp ảnh
+                </button>
+                
+                <button id="confirm-photo-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition mt-4 hidden">
+                    <i class="fas fa-check mr-2"></i>Xác nhận ảnh
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- Main Content -->
@@ -326,6 +375,12 @@
         const mobileRegisterLink = document.getElementById('mobile-register-link');
         const mobileExamManagementLink = document.getElementById('mobile-exam-management-link');
         const mobileLogoutLink = document.getElementById('mobile-logout-link');
+        const photoSection = document.getElementById('photo-section');
+        const photoPreview = document.getElementById('photo-preview');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('capture-btn');
+        const confirmPhotoBtn = document.getElementById('confirm-photo-btn');
+        const photoContainer = document.getElementById('photo-container');
 
         // Variables
         let currentExam = null;
@@ -340,6 +395,9 @@
         let qrScannerActive = false;
         let qrStream = null;
         let violationCount = 0;
+        let studentPhoto = null;
+        let noFaceTimer = null;
+        let noFaceStartTime = null;
         
         // Face detection variables
         let faceDetectionActive = false;
@@ -375,6 +433,8 @@
         startCameraBtn.addEventListener('click', startCamera);
         logoutLink.addEventListener('click', signOut);
         mobileLogoutLink.addEventListener('click', signOut);
+        captureBtn.addEventListener('click', capturePhoto);
+        confirmPhotoBtn.addEventListener('click', confirmPhoto);
 
         // Check for fullscreen changes
         document.addEventListener('fullscreenchange', checkFullscreen);
@@ -518,7 +578,57 @@
             // Load questions
             loadQuestions();
             
-            // Show camera warning
+            // Show photo capture section
+            photoSection.classList.remove('hidden');
+            startPhotoCapture();
+        }
+
+        // Start photo capture
+        function startPhotoCapture() {
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: 300, 
+                    height: 200,
+                    facingMode: 'user' 
+                }, 
+                audio: false 
+            })
+            .then(stream => {
+                photoPreview.srcObject = stream;
+            })
+            .catch(err => {
+                console.error("Error accessing camera for photo: ", err);
+                alert("Không thể truy cập camera để chụp ảnh");
+            });
+        }
+
+        // Capture photo
+        function capturePhoto() {
+            canvas.width = photoPreview.videoWidth;
+            canvas.height = photoPreview.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(photoPreview, 0, 0, canvas.width, canvas.height);
+            
+            // Hide video and show captured photo
+            photoPreview.classList.add('hidden');
+            canvas.classList.remove('hidden');
+            
+            // Enable confirm button
+            confirmPhotoBtn.classList.remove('hidden');
+        }
+
+        // Confirm photo and proceed
+        function confirmPhoto() {
+            // Get photo as data URL
+            studentPhoto = canvas.toDataURL('image/jpeg');
+            
+            // Stop photo stream
+            if (photoPreview.srcObject) {
+                photoPreview.srcObject.getTracks().forEach(track => track.stop());
+            }
+            
+            // Hide photo section and show camera warning
+            photoSection.classList.add('hidden');
             cameraWarning.classList.remove('hidden');
         }
 
@@ -623,14 +733,35 @@
                 // Update face count
                 faceCount = detections.length;
                 
-                // Check for violations immediately
+                // Check for violations
                 if (faceCount !== 1) {
-                    const violationType = faceCount === 0 ? 'no_face' : 'multiple_faces';
-                    const violationMsg = faceCount === 0 
-                        ? 'Không phát hiện khuôn mặt trong camera' 
-                        : `Phát hiện ${faceCount} khuôn mặt trong camera`;
-                    
-                    recordViolation(violationType, violationMsg);
+                    if (faceCount === 0) {
+                        // Start timer if no face is detected
+                        if (!noFaceTimer) {
+                            noFaceStartTime = Date.now();
+                            noFaceTimer = setTimeout(() => {
+                                const elapsedSeconds = (Date.now() - noFaceStartTime) / 1000;
+                                if (elapsedSeconds >= 3 && faceCount === 0) {
+                                    recordViolation('no_face', 'Không phát hiện khuôn mặt trong camera');
+                                }
+                                noFaceTimer = null;
+                            }, 3000);
+                        }
+                    } else {
+                        // Multiple faces detected
+                        if (noFaceTimer) {
+                            clearTimeout(noFaceTimer);
+                            noFaceTimer = null;
+                        }
+                        const violationMsg = `Phát hiện ${faceCount} khuôn mặt trong camera`;
+                        recordViolation('multiple_faces', violationMsg);
+                    }
+                } else {
+                    // Face detected, clear any pending no face violation
+                    if (noFaceTimer) {
+                        clearTimeout(noFaceTimer);
+                        noFaceTimer = null;
+                    }
                 }
                 
             } catch (error) {
@@ -840,6 +971,12 @@
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
             }
+            
+            // Clear no face timer
+            if (noFaceTimer) {
+                clearTimeout(noFaceTimer);
+                noFaceTimer = null;
+            }
         }
 
         // Submit exam
@@ -855,7 +992,11 @@
             
             currentExam.questions.forEach((question, index) => {
                 const answer = formData.get(`q${index}`);
-                answers.push(answer || '');
+                answers.push({
+                    answer: answer || '',
+                    // For essay questions, we'll add manualScore later when grading
+                    manualScore: question.type === 'essay' ? null : 0
+                });
             });
             
             // Calculate time taken
@@ -870,7 +1011,9 @@
                     answers: answers,
                     timeTaken: timeTaken,
                     violations: violationCount,
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    studentPhoto: studentPhoto,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    status: 'pending'
                 });
                 
                 examQuestionsSection.classList.add('hidden');
