@@ -10,6 +10,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -92,6 +93,13 @@
             object-fit: cover;
             border-radius: 8px;
             border: 2px solid #ddd;
+        }
+        .export-btn {
+            background-color: #10b981;
+            color: white;
+        }
+        .export-btn:hover {
+            background-color: #059669;
         }
     </style>
 </head>
@@ -188,9 +196,14 @@
         <div id="exams-tab" class="tab-content active">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-xl font-bold">Danh sách đề thi</h2>
-                <button id="create-exam-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
-                    <i class="fas fa-plus mr-2"></i>Tạo đề thi mới
-                </button>
+                <div>
+                    <button id="export-excel-btn" class="export-btn px-4 py-2 rounded-lg hover:bg-green-700 transition mr-2">
+                        <i class="fas fa-file-excel mr-2"></i>Xuất Excel
+                    </button>
+                    <button id="create-exam-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                        <i class="fas fa-plus mr-2"></i>Tạo đề thi mới
+                    </button>
+                </div>
             </div>
             
             <div class="bg-white rounded-lg shadow overflow-hidden">
@@ -428,6 +441,34 @@
         </div>
     </div>
 
+    <!-- Export Exam Modal -->
+    <div id="export-exam-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">Xuất kết quả ra Excel</h3>
+                <button id="close-export-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label for="export-exam-select" class="block text-sm font-medium text-gray-700 mb-2">Chọn đề thi</label>
+                <select id="export-exam-select" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="">-- Chọn đề thi --</option>
+                </select>
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-export" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                    Hủy bỏ
+                </button>
+                <button id="confirm-export" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                    <i class="fas fa-file-excel mr-2"></i>Xuất Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Firebase configuration
         const firebaseConfig = {
@@ -468,6 +509,12 @@
         const closeViolationModalBtn = document.getElementById('close-violation-modal-btn');
         const violationDetails = document.getElementById('violation-details');
         const resultStudentPhoto = document.getElementById('result-student-photo');
+        const exportExcelBtn = document.getElementById('export-excel-btn');
+        const exportExamModal = document.getElementById('export-exam-modal');
+        const closeExportModal = document.getElementById('close-export-modal');
+        const cancelExport = document.getElementById('cancel-export');
+        const confirmExport = document.getElementById('confirm-export');
+        const exportExamSelect = document.getElementById('export-exam-select');
         
         // Create exam modal elements
         const createExamBtn = document.getElementById('create-exam-btn');
@@ -493,6 +540,7 @@
         let currentExamData = null;
         let currentResultId = null;
         let questionCount = 0;
+        let examListData = [];
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -733,10 +781,12 @@
                     }
                     
                     examsList.innerHTML = '';
+                    examListData = [];
                     
                     querySnapshot.forEach(doc => {
                         const exam = doc.data();
                         const examId = doc.id;
+                        examListData.push({ id: examId, ...exam });
                         
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -877,6 +927,72 @@
                 });
         }
 
+        // Load violations
+        function loadViolations() {
+            violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Đang tải vi phạm...</td></tr>';
+            
+            db.collection('violations')
+                .where('teacherId', '==', currentUser.uid)
+                .orderBy('timestamp', 'desc')
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-gray-500">Không có vi phạm nào</td></tr>';
+                        return;
+                    }
+                    
+                    violationsList.innerHTML = '';
+                    
+                    querySnapshot.forEach(doc => {
+                        const violation = doc.data();
+                        const violationId = doc.id;
+                        
+                        // Get student name
+                        db.collection('users').doc(violation.studentId).get()
+                            .then(studentDoc => {
+                                const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
+                                
+                                // Get exam name
+                                db.collection('exams').doc(violation.examId).get()
+                                    .then(examDoc => {
+                                        const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
+                                        
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = `
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="font-medium text-gray-900">${studentName}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-gray-900">${examName}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-gray-900">${getViolationType(violation.type)}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-gray-900">${violation.timestamp.toDate().toLocaleString()}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <button class="text-indigo-600 hover:text-indigo-900 view-violation" data-id="${violationId}">Xem</button>
+                                            </td>
+                                        `;
+                                        
+                                        violationsList.appendChild(row);
+                                        
+                                        // Add event listener
+                                        row.querySelector('.view-violation').addEventListener('click', e => {
+                                            const violationId = e.target.getAttribute('data-id');
+                                            viewViolation(violationId);
+                                        });
+                                    });
+                            });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading violations:', error);
+                    violationsList.innerHTML = '<tr><td colspan="5" class="px-6 py-4 text-center text-red-500">Có lỗi xảy ra khi tải vi phạm</td></tr>';
+                });
+        }
+
         // Get result status text
         function getResultStatus(result, examData) {
             if (result.status === 'pending') return 'Chờ chấm';
@@ -986,8 +1102,6 @@
                                                                     <span class="flex-grow">${option}</span>
                                                                     ${isStudentAnswer ? 
                                                                         `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                                    ${isStudentAnswer && isCorrectOption ? 
-                                                                        `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                                     ${isStudentAnswer && !isCorrectOption ? 
                                                                         `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                                 </div>
@@ -1011,8 +1125,6 @@
                                                             <span>Đúng</span>
                                                             ${studentAnswer === 'true' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'true' && question.correctAnswer === 'true' ? 
-                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                             ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
@@ -1020,8 +1132,6 @@
                                                             <span>Sai</span>
                                                             ${studentAnswer === 'false' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'false' && question.correctAnswer === 'false' ? 
-                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                             ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
@@ -1042,9 +1152,8 @@
                                                     <div class="text-sm text-gray-600">
                                                         <strong>Đáp án đúng:</strong> ${question.correctAnswer}
                                                     </div>
-                                                    ${isCorrect ? 
-                                                        `<i class="fas fa-check correct-icon mt-2"></i>` : 
-                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>`
+                                                    ${!isCorrect ? 
+                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
                                                     }
                                                 </div>
                                             `;
@@ -1161,8 +1270,6 @@
                                                                     <span class="flex-grow">${option}</span>
                                                                     ${isStudentAnswer ? 
                                                                         `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                                    ${isStudentAnswer && isCorrectOption ? 
-                                                                        `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                                     ${isStudentAnswer && !isCorrectOption ? 
                                                                         `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                                 </div>
@@ -1186,8 +1293,6 @@
                                                             <span>Đúng</span>
                                                             ${studentAnswer === 'true' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'true' && question.correctAnswer === 'true' ? 
-                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                             ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
@@ -1195,8 +1300,6 @@
                                                             <span>Sai</span>
                                                             ${studentAnswer === 'false' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'false' && question.correctAnswer === 'false' ? 
-                                                                `<i class="fas fa-check correct-icon ml-2"></i>` : ''}
                                                             ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
@@ -1217,9 +1320,8 @@
                                                     <div class="text-sm text-gray-600">
                                                         <strong>Đáp án đúng:</strong> ${question.correctAnswer}
                                                     </div>
-                                                    ${isCorrect ? 
-                                                        `<i class="fas fa-check correct-icon mt-2"></i>` : 
-                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>`
+                                                    ${!isCorrect ? 
+                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
                                                     }
                                                 </div>
                                             `;
@@ -1262,8 +1364,12 @@
 
         // Check if answer is correct
         function checkAnswerCorrect(question, answer) {
-            if (question.type === 'mcq' || question.type === 'tf' || question.type === 'sa') {
-                return answer === (question.correctOption || question.correctAnswer);
+            if (question.type === 'mcq') {
+                return answer === question.correctOption;
+            } else if (question.type === 'tf') {
+                return answer === question.correctAnswer;
+            } else if (question.type === 'sa') {
+                return answer.toLowerCase().trim() === question.correctAnswer.toLowerCase().trim();
             }
             return false; // Essay questions need manual grading
         }
@@ -1406,6 +1512,99 @@
                     alert('Có lỗi xảy ra khi xóa đề thi');
                 });
         }
+
+        // Export exam results to Excel
+        function exportExamResults(examId) {
+            db.collection('exam_results')
+                .where('examId', '==', examId)
+                .where('teacherId', '==', currentUser.uid)
+                .get()
+                .then(querySnapshot => {
+                    if (querySnapshot.empty) {
+                        alert('Không có kết quả bài thi nào cho đề thi này');
+                        return;
+                    }
+                    
+                    const results = [];
+                    const examPromises = [];
+                    
+                    querySnapshot.forEach(doc => {
+                        const result = doc.data();
+                        const promise = db.collection('users').doc(result.studentId).get()
+                            .then(studentDoc => {
+                                const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
+                                results.push({
+                                    'STT': results.length + 1,
+                                    'Tên thí sinh': studentName,
+                                    'Điểm': result.finalScore || result.score || 0,
+                                    'Ngày thi': result.submittedAt.toDate().toLocaleString(),
+                                    'Trạng thái': getResultStatus(result, currentExamData)
+                                });
+                            });
+                        examPromises.push(promise);
+                    });
+                    
+                    Promise.all(examPromises).then(() => {
+                        // Get exam name
+                        db.collection('exams').doc(examId).get()
+                            .then(examDoc => {
+                                const examName = examDoc.exists ? examDoc.data().name : 'Đề thi không xác định';
+                                
+                                // Create workbook
+                                const wb = XLSX.utils.book_new();
+                                const ws = XLSX.utils.json_to_sheet(results);
+                                XLSX.utils.book_append_sheet(wb, ws, "Kết quả");
+                                
+                                // Generate file name
+                                const fileName = `Ket_qua_${examName.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+                                
+                                // Export to Excel
+                                XLSX.writeFile(wb, fileName);
+                                
+                                // Close modal
+                                exportExamModal.classList.add('hidden');
+                            });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error exporting results:', error);
+                    alert('Có lỗi xảy ra khi xuất kết quả');
+                });
+        }
+
+        // Show export exam modal
+        exportExcelBtn.addEventListener('click', () => {
+            exportExamSelect.innerHTML = '<option value="">-- Chọn đề thi --</option>';
+            
+            examListData.forEach(exam => {
+                const option = document.createElement('option');
+                option.value = exam.id;
+                option.textContent = exam.name;
+                exportExamSelect.appendChild(option);
+            });
+            
+            exportExamModal.classList.remove('hidden');
+        });
+
+        // Close export modal
+        closeExportModal.addEventListener('click', () => {
+            exportExamModal.classList.add('hidden');
+        });
+
+        cancelExport.addEventListener('click', () => {
+            exportExamModal.classList.add('hidden');
+        });
+
+        // Confirm export
+        confirmExport.addEventListener('click', () => {
+            const examId = exportExamSelect.value;
+            if (!examId) {
+                alert('Vui lòng chọn đề thi');
+                return;
+            }
+            
+            exportExamResults(examId);
+        });
 
         // Add question to exam form
         function addQuestion(type) {
@@ -1570,6 +1769,9 @@
             }
             if (e.target === examCodeModal) {
                 examCodeModal.classList.add('hidden');
+            }
+            if (e.target === exportExamModal) {
+                exportExamModal.classList.add('hidden');
             }
         });
     </script>
