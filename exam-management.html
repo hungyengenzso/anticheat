@@ -1029,170 +1029,193 @@
         }
 
         // View exam result
-        function viewExamResult(resultId) {
-            db.collection('exam_results').doc(resultId).get()
-                .then(doc => {
-                    if (!doc.exists) {
-                        alert('Kết quả bài thi không tồn tại');
+function viewExamResult(resultId) {
+    db.collection('exam_results').doc(resultId).get()
+        .then(doc => {
+            if (!doc.exists) {
+                alert('Kết quả bài thi không tồn tại');
+                return;
+            }
+            
+            const result = doc.data();
+            currentExamResult = result;
+            
+            // Get exam data
+            db.collection('exams').doc(result.examId).get()
+                .then(examDoc => {
+                    if (!examDoc.exists) {
+                        alert('Đề thi không tồn tại');
                         return;
                     }
                     
-                    const result = doc.data();
-                    currentExamResult = result;
+                    currentExamData = examDoc.data();
                     
-                    // Get exam data
-                    db.collection('exams').doc(result.examId).get()
-                        .then(examDoc => {
-                            if (!examDoc.exists) {
-                                alert('Đề thi không tồn tại');
-                                return;
+                    // Get student name
+                    db.collection('users').doc(result.studentId).get()
+                        .then(studentDoc => {
+                            const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
+                            
+                            // Calculate total score
+                            let totalScore = 0;
+                            currentExamData.questions.forEach((question, index) => {
+                                const studentAnswer = result.answers[index]?.answer || '';
+                                if (question.type !== 'essay') {
+                                    if (checkAnswerCorrect(question, studentAnswer)) {
+                                        totalScore += 1;
+                                    }
+                                } else {
+                                    // For essay questions, add manual score if available
+                                    totalScore += result.answers[index]?.manualScore || 0;
+                                }
+                            });
+                            
+                            // Update modal info
+                            document.getElementById('result-modal-title').textContent = `Kết quả bài thi: ${currentExamData.name}`;
+                            document.getElementById('result-student-name').textContent = studentName;
+                            document.getElementById('result-exam-name').textContent = currentExamData.name;
+                            document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
+                            document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
+                            document.getElementById('result-violations').textContent = result.violations || 0;
+                            document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
+                            document.getElementById('result-total-score').textContent = totalScore;
+                            document.getElementById('result-max-score').textContent = currentExamData.questions.length;
+                            
+                            // Show student photo if available
+                            if (result.studentPhoto) {
+                                resultStudentPhoto.src = result.studentPhoto;
+                                resultStudentPhoto.style.display = 'block';
+                            } else {
+                                resultStudentPhoto.style.display = 'none';
                             }
                             
-                            currentExamData = examDoc.data();
+                            // Load questions
+                            resultQuestionsContainer.innerHTML = '';
                             
-                            // Get student name
-                            db.collection('users').doc(result.studentId).get()
-                                .then(studentDoc => {
-                                    const studentName = studentDoc.exists ? studentDoc.data().name : 'Không xác định';
-                                    
-                                    // Update modal info
-                                    document.getElementById('result-modal-title').textContent = `Kết quả bài thi: ${currentExamData.name}`;
-                                    document.getElementById('result-student-name').textContent = studentName;
-                                    document.getElementById('result-exam-name').textContent = currentExamData.name;
-                                    document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
-                                    document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
-                                    document.getElementById('result-violations').textContent = result.violations || 0;
-                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.length}`;
-                                    document.getElementById('result-total-score').textContent = result.finalScore || result.score || 0;
-                                    document.getElementById('result-max-score').textContent = currentExamData.questions.length;
-                                    
-                                    // Show student photo if available
-                                    if (result.studentPhoto) {
-                                        resultStudentPhoto.src = result.studentPhoto;
-                                        resultStudentPhoto.style.display = 'block';
-                                    } else {
-                                        resultStudentPhoto.style.display = 'none';
-                                    }
-                                    
-                                    // Load questions
-                                    resultQuestionsContainer.innerHTML = '';
-                                    
-                                    currentExamData.questions.forEach((question, index) => {
-                                        const questionElement = document.createElement('div');
-                                        const studentAnswer = result.answers[index]?.answer || '';
-                                        const isCorrect = checkAnswerCorrect(question, studentAnswer);
-                                        
-                                        questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
-                                            isCorrect ? 'correct-answer' : 'incorrect-answer'
-                                        }`;
-                                        
-                                        let questionHtml = '';
-                                        
-                                        if (question.type === 'mcq') {
-                                            questionHtml = `
-                                                <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
-                                                    <div class="space-y-2 mb-3">
-                                                        ${question.options.map((option, i) => {
-                                                            const isStudentAnswer = studentAnswer === i.toString();
-                                                            const isCorrectOption = question.correctOption === i.toString();
-                                                            return `
-                                                                <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
-                                                                    <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
-                                                                    <span class="flex-grow">${option}</span>
-                                                                    ${isStudentAnswer ? 
-                                                                        `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                                    ${isStudentAnswer && !isCorrectOption ? 
-                                                                        `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
-                                                                </div>
-                                                            `;
-                                                        }).join('')}
-                                                    </div>
-                                                    <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
-                                                    </div>
-                                                </div>
-                                            `;
-                                        } else if (question.type === 'tf') {
-                                            const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
-                                            const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
-                                            
-                                            questionHtml = `
-                                                <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
-                                                    <div class="space-y-2 mb-3">
-                                                        <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
-                                                            <span>Đúng</span>
-                                                            ${studentAnswer === 'true' ? 
+                            currentExamData.questions.forEach((question, index) => {
+                                const questionElement = document.createElement('div');
+                                const studentAnswer = result.answers[index]?.answer || '';
+                                const isCorrect = checkAnswerCorrect(question, studentAnswer);
+                                
+                                questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
+                                    isCorrect ? 'correct-answer' : 'incorrect-answer'
+                                }`;
+                                
+                                let questionHtml = '';
+                                
+                                if (question.type === 'mcq') {
+                                    questionHtml = `
+                                        <div class="mb-4">
+                                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                            <div class="space-y-2 mb-3">
+                                                ${question.options.map((option, i) => {
+                                                    const isStudentAnswer = studentAnswer === i.toString();
+                                                    const isCorrectOption = question.correctOption === i.toString();
+                                                    return `
+                                                        <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
+                                                            <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
+                                                            <span class="flex-grow">${option}</span>
+                                                            ${isStudentAnswer ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                            ${isStudentAnswer && !isCorrectOption ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
-                                                        <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
-                                                            <span>Sai</span>
-                                                            ${studentAnswer === 'false' ? 
-                                                                `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
-                                                                `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
-                                                        </div>
-                                                    </div>
-                                                    <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${correctAnswerText}
-                                                    </div>
-                                                </div>
-                                            `;
-                                        } else if (question.type === 'sa') {
-                                            questionHtml = `
-                                                <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
-                                                    <div class="mb-3">
-                                                        <p class="font-bold">Trả lời của thí sinh:</p>
-                                                        <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
-                                                    </div>
-                                                    <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${question.correctAnswer}
-                                                    </div>
-                                                    ${!isCorrect ? 
-                                                        `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
-                                                    }
-                                                </div>
-                                            `;
-                                        } else if (question.type === 'essay') {
-                                            const manualScore = result.answers[index]?.manualScore || 0;
-                                            questionHtml = `
-                                                <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
-                                                    <div class="mb-3">
-                                                        <p class="font-bold">Trả lời của thí sinh:</p>
-                                                        <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
-                                                    </div>
-                                                    <div class="flex items-center mb-2">
-                                                        <label class="mr-3">Điểm:</label>
-                                                        <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
-                                                            class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}" disabled>
-                                                        <span class="ml-2">/ 1</span>
-                                                    </div>
-                                                </div>
-                                            `;
-                                        }
-                                        
-                                        questionElement.innerHTML = questionHtml;
-                                        resultQuestionsContainer.appendChild(questionElement);
-                                    });
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                            <div class="text-sm text-gray-600">
+                                                <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
+                                            </div>
+                                            <div class="mt-2 text-sm font-medium">
+                                                Điểm: ${isCorrect ? '1' : '0'}/1
+                                            </div>
+                                        </div>
+                                    `;
+                                } else if (question.type === 'tf') {
+                                    const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
+                                    const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
                                     
-                                    // Disable save button for viewing
-                                    saveResultBtn.disabled = true;
-                                    
-                                    // Show modal
-                                    resultModal.classList.remove('hidden');
-                                });
+                                    questionHtml = `
+                                        <div class="mb-4">
+                                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                            <div class="space-y-2 mb-3">
+                                                <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
+                                                    <span>Đúng</span>
+                                                    ${studentAnswer === 'true' ? 
+                                                        `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                    ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                        `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                </div>
+                                                <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
+                                                    <span>Sai</span>
+                                                    ${studentAnswer === 'false' ? 
+                                                        `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
+                                                    ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
+                                                        `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
+                                                </div>
+                                            </div>
+                                            <div class="text-sm text-gray-600">
+                                                <strong>Đáp án đúng:</strong> ${correctAnswerText}
+                                            </div>
+                                            <div class="mt-2 text-sm font-medium">
+                                                Điểm: ${isCorrect ? '1' : '0'}/1
+                                            </div>
+                                        </div>
+                                    `;
+                                } else if (question.type === 'sa') {
+                                    questionHtml = `
+                                        <div class="mb-4">
+                                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                            <div class="mb-3">
+                                                <p class="font-bold">Trả lời của thí sinh:</p>
+                                                <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
+                                            </div>
+                                            <div class="text-sm text-gray-600">
+                                                <strong>Đáp án đúng:</strong> ${question.correctAnswer}
+                                            </div>
+                                            ${!isCorrect ? 
+                                                `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
+                                            }
+                                            <div class="mt-2 text-sm font-medium">
+                                                Điểm: ${isCorrect ? '1' : '0'}/1
+                                            </div>
+                                        </div>
+                                    `;
+                                } else if (question.type === 'essay') {
+                                    const manualScore = result.answers[index]?.manualScore || 0;
+                                    questionHtml = `
+                                        <div class="mb-4">
+                                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                            <div class="mb-3">
+                                                <p class="font-bold">Trả lời của thí sinh:</p>
+                                                <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
+                                            </div>
+                                            <div class="flex items-center mb-2">
+                                                <label class="mr-3">Điểm:</label>
+                                                <input type="number" min="0" max="1" step="0.5" value="${manualScore}" 
+                                                    class="score-input border border-gray-300 rounded px-2 py-1 w-16" data-index="${index}" disabled>
+                                                <span class="ml-2">/ 1</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                
+                                questionElement.innerHTML = questionHtml;
+                                resultQuestionsContainer.appendChild(questionElement);
+                            });
+                            
+                            // Disable save button for viewing
+                            saveResultBtn.disabled = true;
+                            
+                            // Show modal
+                            resultModal.classList.remove('hidden');
                         });
-                })
-                .catch(error => {
-                    console.error('Error loading exam result:', error);
-                    alert('Có lỗi xảy ra khi tải kết quả bài thi');
                 });
-        }
+        })
+        .catch(error => {
+            console.error('Error loading exam result:', error);
+            alert('Có lỗi xảy ra khi tải kết quả bài thi');
+        });
+}
 
         // Grade exam
         function gradeExam(resultId) {
