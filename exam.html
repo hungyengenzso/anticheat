@@ -10,7 +10,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -152,6 +151,30 @@
         #canvas {
             display: none;
         }
+        #api-status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 1000;
+            display: none;
+        }
+        .api-key-status {
+            margin: 2px 0;
+        }
+        .api-active {
+            color: #4CAF50;
+        }
+        .api-processing {
+            color: #FFC107;
+        }
+        .api-error {
+            color: #f44336;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -194,6 +217,11 @@
     <!-- Camera Preview -->
     <div id="video-container" style="margin-top: 75px;">
         <video id="video-preview" autoplay muted playsinline></video>
+    </div>
+
+    <!-- API Status (hidden by default) -->
+    <div id="api-status">
+        <!-- API key status will be added dynamically -->
     </div>
 
     <!-- Audio Indicator -->
@@ -382,6 +410,7 @@
         const captureBtn = document.getElementById('capture-btn');
         const confirmPhotoBtn = document.getElementById('confirm-photo-btn');
         const photoContainer = document.getElementById('photo-container');
+        const apiStatusContainer = document.getElementById('api-status');
 
         // Variables
         let currentExam = null;
@@ -397,18 +426,41 @@
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
-        let noFaceTimer = null;
-        let noFaceStartTime = null;
         
-        // Face detection variables
-        let faceDetectionActive = false;
-        let lastFaceCount = 0;
-        let faceCount = 0;
-        let faceCheckInterval;
-        let violationWarningTimeout;
-        let audioCheckInterval;
-        let lastAudioLevel = 0;
+        // Gemini API variables
+        const API_KEYS = [
+            'AIzaSyDN3FpLLxpue1y481xaIhrASCVpqbKxvdQ',
+            'AIzaSyDSyoq4gsmAaKgaCD-93WuH7FjhdsRdD84',
+            'AIzaSyAoA--31n5MR7pEQcsbK12BK_RHvZsZlkM',
+            'AIzaSyAsFW9nUIfMka7U0ZjGPN8ETzh-q4tYxQ0'
+        ];
+        const SCAN_INTERVAL = 1500; // 1.5 giây giữa các lần quét
+        let apiKeyTimers = [];
+        let apiKeyElements = [];
+        let apiKeyStats = [];
+        let lastDetectionResult = null;
         let speakingCount = 0;
+        let lastAudioLevel = 0;
+        let audioCheckInterval;
+        
+        // Violation tracking
+        const VIOLATION_TYPES = {
+            NO_PERSON: 'no_person',
+            MULTIPLE_PEOPLE: 'multiple_people',
+            ELECTRONIC_DEVICE: 'electronic_device',
+            AUDIO_DETECTED: 'audio_detected',
+            FULLSCREEN_EXIT: 'fullscreen_exit',
+            TAB_SWITCH: 'tab_switch'
+        };
+        
+        let activeViolations = {
+            [VIOLATION_TYPES.NO_PERSON]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.MULTIPLE_PEOPLE]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 }
+        };
+        
+        const VIOLATION_COOLDOWN = 4000; // 4 giây
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -448,6 +500,31 @@
 
         // Check exam code when input changes
         examCodeInput.addEventListener('input', checkExamCode);
+
+        // Initialize API status UI
+        function initApiStatusUI() {
+            API_KEYS.forEach((key, index) => {
+                const element = document.createElement('div');
+                element.className = 'api-key-status';
+                element.id = `api-key-${index}-status`;
+                element.innerHTML = `API ${index+1}: <span class="api-state">Đang chờ</span>`;
+                apiStatusContainer.appendChild(element);
+                apiKeyElements.push(element);
+                apiKeyStats.push({ usage: 0, errors: 0 });
+            });
+        }
+
+        // Update API key status
+        function updateApiKeyStatus(index, state) {
+            const element = apiKeyElements[index];
+            const stateElement = element.querySelector('.api-state');
+            
+            element.className = `api-key-status api-${state}`;
+            stateElement.textContent = 
+                state === 'active' ? 'Đang hoạt động' :
+                state === 'processing' ? 'Đang xử lý' :
+                state === 'error' ? 'Lỗi' : 'Đang chờ';
+        }
 
         // Cập nhật menu khi đã đăng nhập
         function updateMenuForLoggedInUser() {
@@ -637,11 +714,10 @@
         async function startCamera() {
             cameraWarning.classList.add('hidden');
             audioIndicator.classList.remove('hidden');
+            apiStatusContainer.style.display = 'block';
+            initApiStatusUI();
             
             try {
-                // Load face-api.js models
-                await faceapi.nets.tinyFaceDetector.loadFromUri('https://justadudewhohacks.github.io/face-api.js/models');
-                
                 // Start camera and microphone
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
@@ -660,9 +736,8 @@
                 // Initialize audio analysis
                 initAudioAnalysis(stream);
                 
-                // Start face detection
-                faceDetectionActive = true;
-                faceCheckInterval = setInterval(detectFaces, 800); // Optimized face detection interval
+                // Start Gemini API scanning
+                startAutoScan();
                 
                 // Enter fullscreen mode
                 enterFullscreen();
@@ -672,7 +747,7 @@
                 alert("Bạn phải cho phép truy cập camera và microphone để tiếp tục làm bài");
                 cameraWarning.classList.remove('hidden');
                 audioIndicator.classList.add('hidden');
-                faceDetectionActive = false;
+                apiStatusContainer.style.display = 'none';
             }
         }
 
@@ -707,7 +782,7 @@
                 
                 // If speaking detected multiple times in a row
                 if (speakingCount > 2) {
-                    recordViolation('audio_detected', 'Phát hiện tiếng nói trong quá trình thi');
+                    handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
                     speakingCount = 0;
                 }
             } else {
@@ -717,57 +792,165 @@
             lastAudioLevel = average;
         }
 
-        // Optimized face detection
-        async function detectFaces() {
-            if (!faceDetectionActive || !videoPreview || videoPreview.readyState < 2) return;
+        // Capture image from video stream
+        function captureImage() {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoPreview.videoWidth;
+            canvas.height = videoPreview.videoHeight;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingEnabled = true;
+            ctx.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
+            
+            return canvas.toDataURL('image/jpeg', 0.9);
+        }
 
+        // Analyze image using Gemini API
+        async function analyzeImage(apiKeyIndex) {
+            const apiKey = API_KEYS[apiKeyIndex];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+            
+            const prompt = `Phân tích hình ảnh và trả lời theo định dạng JSON chính xác:
+                {
+                    "people": số lượng người trong hình,
+                    "electronic_devices": [danh sách thiết bị điện tử (điện thoại, laptop, máy tính bảng)],
+                    "confidence": mức độ chắc chắn từ 0-100
+                }
+                Lưu ý: Máy tính cầm tay (casio) không tính là thiết bị điện tử. Chỉ trả lời bằng JSON.`;
+            
+            const imageData = captureImage();
+            const requestData = {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }, {
+                        inlineData: {
+                            mimeType: "image/jpeg",
+                            data: imageData.split(',')[1]
+                        }
+                    }]
+                }]
+            };
+            
             try {
-                // Use requestAnimationFrame for better performance
-                await new Promise(resolve => requestAnimationFrame(resolve));
+                updateApiKeyStatus(apiKeyIndex, 'processing');
                 
-                // Detect all faces (simplified without landmarks for better performance)
-                const detections = await faceapi.detectAllFaces(
-                    videoPreview, 
-                    new faceapi.TinyFaceDetectorOptions()
-                );
-
-                // Update face count
-                faceCount = detections.length;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
                 
-                // Check for violations
-                if (faceCount !== 1) {
-                    if (faceCount === 0) {
-                        // Start timer if no face is detected
-                        if (!noFaceTimer) {
-                            noFaceStartTime = Date.now();
-                            noFaceTimer = setTimeout(() => {
-                                const elapsedSeconds = (Date.now() - noFaceStartTime) / 1000;
-                                if (elapsedSeconds >= 3 && faceCount === 0) {
-                                    recordViolation('no_face', 'Không phát hiện khuôn mặt trong camera');
-                                }
-                                noFaceTimer = null;
-                            }, 3000);
-                        }
-                    } else {
-                        // Multiple faces detected
-                        if (noFaceTimer) {
-                            clearTimeout(noFaceTimer);
-                            noFaceTimer = null;
-                        }
-                        const violationMsg = `Phát hiện ${faceCount} khuôn mặt trong camera`;
-                        recordViolation('multiple_faces', violationMsg);
-                    }
-                } else {
-                    // Face detected, clear any pending no face violation
-                    if (noFaceTimer) {
-                        clearTimeout(noFaceTimer);
-                        noFaceTimer = null;
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                apiKeyStats[apiKeyIndex].usage++;
+                
+                if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const responseText = data.candidates[0].content.parts[0].text;
+                    try {
+                        const jsonStart = responseText.indexOf('{');
+                        const jsonEnd = responseText.lastIndexOf('}') + 1;
+                        const jsonStr = responseText.substring(jsonStart, jsonEnd);
+                        const result = JSON.parse(jsonStr);
+                        
+                        updateApiKeyStatus(apiKeyIndex, 'active');
+                        return result;
+                    } catch (e) {
+                        console.error("Lỗi phân tích JSON:", e);
+                        throw new Error("Invalid JSON response");
                     }
                 }
-                
+                throw new Error("Invalid API response");
             } catch (error) {
-                console.error('Error detecting faces:', error);
+                console.error(`Lỗi API key ${apiKeyIndex+1}:`, error);
+                apiKeyStats[apiKeyIndex].errors++;
+                updateApiKeyStatus(apiKeyIndex, 'error');
+                return null;
             }
+        }
+
+        // Handle detection results from Gemini API
+        function handleDetection(result, apiKeyIndex) {
+            if (!result) return;
+            
+            lastDetectionResult = result;
+            
+            // Check number of people
+            if (result.people === 0) {
+                handleViolation(VIOLATION_TYPES.NO_PERSON, "Không phát hiện khuôn mặt trong camera");
+            } else if (result.people > 1) {
+                handleViolation(VIOLATION_TYPES.MULTIPLE_PEOPLE, `Phát hiện ${result.people} khuôn mặt trong camera (chỉ cho phép 1 người)`);
+            } else {
+                // Reset violation timers if no violation
+                resetViolationTimer(VIOLATION_TYPES.NO_PERSON);
+                resetViolationTimer(VIOLATION_TYPES.MULTIPLE_PEOPLE);
+            }
+            
+            // Check for electronic devices
+            if (result.electronic_devices && result.electronic_devices.length > 0) {
+                handleViolation(VIOLATION_TYPES.ELECTRONIC_DEVICE, `Phát hiện thiết bị điện tử: ${result.electronic_devices.join(', ')}`);
+            } else {
+                resetViolationTimer(VIOLATION_TYPES.ELECTRONIC_DEVICE);
+            }
+        }
+
+        // Handle violation with cooldown
+        function handleViolation(type, message) {
+            const now = Date.now();
+            const violation = activeViolations[type];
+            
+            // If violation is not active or cooldown has passed
+            if (!violation.active || now - violation.lastTime > VIOLATION_COOLDOWN) {
+                violation.active = true;
+                violation.lastTime = now;
+                
+                // Record the violation
+                recordViolation(type, message);
+                
+                // Set timer to reset violation status after cooldown
+                if (violation.timer) {
+                    clearTimeout(violation.timer);
+                }
+                violation.timer = setTimeout(() => {
+                    violation.active = false;
+                }, VIOLATION_COOLDOWN);
+            }
+        }
+
+        // Reset violation timer
+        function resetViolationTimer(type) {
+            const violation = activeViolations[type];
+            if (violation.timer) {
+                clearTimeout(violation.timer);
+                violation.active = false;
+            }
+        }
+
+        // Setup scanner for each API key
+        function setupApiScanner(apiKeyIndex) {
+            return setInterval(async () => {
+                const result = await analyzeImage(apiKeyIndex);
+                if (result) {
+                    handleDetection(result, apiKeyIndex);
+                }
+            }, API_KEYS.length * SCAN_INTERVAL);
+        }
+
+        // Start auto scanning with all API keys
+        function startAutoScan() {
+            // Initialize timers for each API key
+            API_KEYS.forEach((_, index) => {
+                // Each API key starts scanning at different times
+                setTimeout(() => {
+                    apiKeyTimers[index] = setupApiScanner(index);
+                }, index * SCAN_INTERVAL);
+            });
+        }
+
+        // Stop all scanning
+        function stopAllScans() {
+            apiKeyTimers.forEach(timer => clearInterval(timer));
         }
 
         // Fast screenshot capture
@@ -803,7 +986,8 @@
                 details: details,
                 screenshot: screenshot,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                faceCount: faceCount
+                faceCount: lastDetectionResult?.people || 0,
+                devicesDetected: lastDetectionResult?.electronic_devices?.join(', ') || 'none'
             };
             
             // Save to Firestore (don't wait for completion)
@@ -861,7 +1045,7 @@
             
             if (!isFullscreen && examQuestionsSection.classList.contains('hidden') === false) {
                 fullscreenWarning.classList.remove('hidden');
-                recordViolation('fullscreen_exit', 'Thí sinh thoát chế độ toàn màn hình');
+                recordViolation(VIOLATION_TYPES.FULLSCREEN_EXIT, 'Thí sinh thoát chế độ toàn màn hình');
             } else {
                 fullscreenWarning.classList.add('hidden');
             }
@@ -870,7 +1054,7 @@
         // Handle visibility change (tab switching)
         function handleVisibilityChange() {
             if (document.hidden && examQuestionsSection.classList.contains('hidden') === false) {
-                recordViolation('tab_switch', 'Thí sinh chuyển tab trình duyệt');
+                recordViolation(VIOLATION_TYPES.TAB_SWITCH, 'Thí sinh chuyển tab trình duyệt');
                 showViolationWarning('CẢNH BÁO: Bạn đã chuyển tab trình duyệt. Hành động này đã được ghi lại.');
             }
         }
@@ -954,9 +1138,8 @@
 
         // Clean up resources
         function stopMonitoring() {
-            // Stop face detection
-            faceDetectionActive = false;
-            clearInterval(faceCheckInterval);
+            // Stop API scanning
+            stopAllScans();
             
             // Stop audio analysis
             clearInterval(audioCheckInterval);
@@ -971,12 +1154,6 @@
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
-            }
-            
-            // Clear no face timer
-            if (noFaceTimer) {
-                clearTimeout(noFaceTimer);
-                noFaceTimer = null;
             }
         }
 
@@ -1020,6 +1197,7 @@
                 examQuestionsSection.classList.add('hidden');
                 examCompletedSection.classList.remove('hidden');
                 audioIndicator.classList.add('hidden');
+                apiStatusContainer.style.display = 'none';
                 
                 // Exit fullscreen
                 if (document.exitFullscreen) {
