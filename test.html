@@ -426,8 +426,6 @@
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
-        let noFaceTimer = null;
-        let noFaceStartTime = null;
         
         // Gemini API variables
         const API_KEYS = [
@@ -444,6 +442,25 @@
         let speakingCount = 0;
         let lastAudioLevel = 0;
         let audioCheckInterval;
+        
+        // Violation tracking
+        const VIOLATION_TYPES = {
+            NO_PERSON: 'no_person',
+            MULTIPLE_PEOPLE: 'multiple_people',
+            ELECTRONIC_DEVICE: 'electronic_device',
+            AUDIO_DETECTED: 'audio_detected',
+            FULLSCREEN_EXIT: 'fullscreen_exit',
+            TAB_SWITCH: 'tab_switch'
+        };
+        
+        let activeViolations = {
+            [VIOLATION_TYPES.NO_PERSON]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.MULTIPLE_PEOPLE]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 }
+        };
+        
+        const VIOLATION_COOLDOWN = 4000; // 4 giây
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -765,7 +782,7 @@
                 
                 // If speaking detected multiple times in a row
                 if (speakingCount > 2) {
-                    recordViolation('audio_detected', 'Phát hiện tiếng nói trong quá trình thi');
+                    handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
                     speakingCount = 0;
                 }
             } else {
@@ -858,25 +875,55 @@
             if (!result) return;
             
             lastDetectionResult = result;
-            const violations = [];
             
             // Check number of people
             if (result.people === 0) {
-                violations.push("Không phát hiện khuôn mặt trong camera");
+                handleViolation(VIOLATION_TYPES.NO_PERSON, "Không phát hiện khuôn mặt trong camera");
             } else if (result.people > 1) {
-                violations.push(`Phát hiện ${result.people} khuôn mặt trong camera (chỉ cho phép 1 người)`);
+                handleViolation(VIOLATION_TYPES.MULTIPLE_PEOPLE, `Phát hiện ${result.people} khuôn mặt trong camera (chỉ cho phép 1 người)`);
+            } else {
+                // Reset violation timers if no violation
+                resetViolationTimer(VIOLATION_TYPES.NO_PERSON);
+                resetViolationTimer(VIOLATION_TYPES.MULTIPLE_PEOPLE);
             }
             
             // Check for electronic devices
             if (result.electronic_devices && result.electronic_devices.length > 0) {
-                violations.push(`Phát hiện thiết bị điện tử: ${result.electronic_devices.join(', ')}`);
+                handleViolation(VIOLATION_TYPES.ELECTRONIC_DEVICE, `Phát hiện thiết bị điện tử: ${result.electronic_devices.join(', ')}`);
+            } else {
+                resetViolationTimer(VIOLATION_TYPES.ELECTRONIC_DEVICE);
             }
+        }
+
+        // Handle violation with cooldown
+        function handleViolation(type, message) {
+            const now = Date.now();
+            const violation = activeViolations[type];
             
-            // Record violations if any
-            if (violations.length > 0) {
-                violations.forEach(violation => {
-                    recordViolation('camera_analysis', violation);
-                });
+            // If violation is not active or cooldown has passed
+            if (!violation.active || now - violation.lastTime > VIOLATION_COOLDOWN) {
+                violation.active = true;
+                violation.lastTime = now;
+                
+                // Record the violation
+                recordViolation(type, message);
+                
+                // Set timer to reset violation status after cooldown
+                if (violation.timer) {
+                    clearTimeout(violation.timer);
+                }
+                violation.timer = setTimeout(() => {
+                    violation.active = false;
+                }, VIOLATION_COOLDOWN);
+            }
+        }
+
+        // Reset violation timer
+        function resetViolationTimer(type) {
+            const violation = activeViolations[type];
+            if (violation.timer) {
+                clearTimeout(violation.timer);
+                violation.active = false;
             }
         }
 
@@ -998,7 +1045,7 @@
             
             if (!isFullscreen && examQuestionsSection.classList.contains('hidden') === false) {
                 fullscreenWarning.classList.remove('hidden');
-                recordViolation('fullscreen_exit', 'Thí sinh thoát chế độ toàn màn hình');
+                recordViolation(VIOLATION_TYPES.FULLSCREEN_EXIT, 'Thí sinh thoát chế độ toàn màn hình');
             } else {
                 fullscreenWarning.classList.add('hidden');
             }
@@ -1007,7 +1054,7 @@
         // Handle visibility change (tab switching)
         function handleVisibilityChange() {
             if (document.hidden && examQuestionsSection.classList.contains('hidden') === false) {
-                recordViolation('tab_switch', 'Thí sinh chuyển tab trình duyệt');
+                recordViolation(VIOLATION_TYPES.TAB_SWITCH, 'Thí sinh chuyển tab trình duyệt');
                 showViolationWarning('CẢNH BÁO: Bạn đã chuyển tab trình duyệt. Hành động này đã được ghi lại.');
             }
         }
@@ -1107,12 +1154,6 @@
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
-            }
-            
-            // Clear no face timer
-            if (noFaceTimer) {
-                clearTimeout(noFaceTimer);
-                noFaceTimer = null;
             }
         }
 
