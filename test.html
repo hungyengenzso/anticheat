@@ -175,6 +175,36 @@
         .api-error {
             color: #f44336;
         }
+        #speech-recognition-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 1000;
+        }
+        .speech-active {
+            color: #4CAF50;
+        }
+        .speech-error {
+            color: #f44336;
+        }
+        #speech-result {
+            position: fixed;
+            bottom: 40px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 1000;
+            max-width: 300px;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -224,10 +254,18 @@
         <!-- API key status will be added dynamically -->
     </div>
 
+    <!-- Speech Recognition Status -->
+    <div id="speech-recognition-status" class="hidden">
+        Trạng thái nhận dạng giọng nói: <span class="speech-state">Chưa khởi động</span>
+    </div>
+
+    <!-- Speech Recognition Result -->
+    <div id="speech-result" class="hidden"></div>
+
     <!-- Audio Indicator -->
     <div id="audio-indicator" class="hidden">
-        <i class="fas fa-microphone-slash mr-2"></i>
-        <span>Đang phân tích âm thanh</span>
+        <i class="fas fa-microphone mr-2"></i>
+        <span>Đang giám sát âm thanh</span>
     </div>
 
     <!-- Fullscreen Warning -->
@@ -411,6 +449,8 @@
         const confirmPhotoBtn = document.getElementById('confirm-photo-btn');
         const photoContainer = document.getElementById('photo-container');
         const apiStatusContainer = document.getElementById('api-status');
+        const speechStatus = document.getElementById('speech-recognition-status');
+        const speechResult = document.getElementById('speech-result');
 
         // Variables
         let currentExam = null;
@@ -419,9 +459,6 @@
         let examStartTime = null;
         let cameraStream = null;
         let audioStream = null;
-        let audioContext = null;
-        let analyser = null;
-        let microphone = null;
         let qrScannerActive = false;
         let qrStream = null;
         let violationCount = 0;
@@ -439,16 +476,19 @@
         let apiKeyElements = [];
         let apiKeyStats = [];
         let lastDetectionResult = null;
-        let speakingCount = 0;
-        let lastAudioLevel = 0;
-        let audioCheckInterval;
+        
+        // Speech Recognition variables
+        let recognition = null;
+        let speechTimeout = null;
+        let lastSpeechTime = 0;
+        let speechDetectionActive = false;
         
         // Violation tracking
         const VIOLATION_TYPES = {
             NO_PERSON: 'no_person',
             MULTIPLE_PEOPLE: 'multiple_people',
             ELECTRONIC_DEVICE: 'electronic_device',
-            AUDIO_DETECTED: 'audio_detected',
+            SPEECH_DETECTED: 'speech_detected',
             FULLSCREEN_EXIT: 'fullscreen_exit',
             TAB_SWITCH: 'tab_switch'
         };
@@ -457,7 +497,7 @@
             [VIOLATION_TYPES.NO_PERSON]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.MULTIPLE_PEOPLE]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
-            [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 }
+            [VIOLATION_TYPES.SPEECH_DETECTED]: { active: false, timer: null, lastTime: 0 }
         };
         
         const VIOLATION_COOLDOWN = 4000; // 4 giây
@@ -710,12 +750,112 @@
             cameraWarning.classList.remove('hidden');
         }
 
+        // Initialize speech recognition
+        function initSpeechRecognition() {
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'vi-VN'; // Vietnamese language
+                
+                recognition.onstart = () => {
+                    speechStatus.classList.remove('hidden');
+                    speechStatus.querySelector('.speech-state').textContent = 'Đang hoạt động';
+                    speechStatus.querySelector('.speech-state').className = 'speech-state speech-active';
+                    speechDetectionActive = true;
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error', event.error);
+                    speechStatus.querySelector('.speech-state').textContent = `Lỗi: ${event.error}`;
+                    speechStatus.querySelector('.speech-state').className = 'speech-state speech-error';
+                    
+                    // Try to restart recognition after error
+                    if (speechDetectionActive) {
+                        setTimeout(() => {
+                            if (speechDetectionActive) recognition.start();
+                        }, 1000);
+                    }
+                };
+                
+                recognition.onresult = (event) => {
+                    const now = Date.now();
+                    
+                    // Only process if at least 5 seconds have passed since last detection
+                    if (now - lastSpeechTime < 5000) return;
+                    
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    // Show interim results
+                    if (interimTranscript) {
+                        speechResult.classList.remove('hidden');
+                        speechResult.textContent = interimTranscript;
+                    }
+                    
+                    // Process final results
+                    if (finalTranscript) {
+                        lastSpeechTime = now;
+                        speechResult.textContent = finalTranscript;
+                        
+                        // Record violation
+                        handleViolation(
+                            VIOLATION_TYPES.SPEECH_DETECTED, 
+                            `Phát hiện giọng nói: "${finalTranscript.trim()}"`
+                        );
+                        
+                        // Clear result after 3 seconds
+                        setTimeout(() => {
+                            speechResult.classList.add('hidden');
+                        }, 3000);
+                    }
+                };
+                
+                recognition.onend = () => {
+                    if (speechDetectionActive) {
+                        recognition.start();
+                    }
+                };
+                
+                // Start recognition
+                recognition.start();
+                
+            } catch (e) {
+                console.error('Speech recognition not supported', e);
+                speechStatus.classList.remove('hidden');
+                speechStatus.querySelector('.speech-state').textContent = 'Không hỗ trợ nhận dạng giọng nói';
+                speechStatus.querySelector('.speech-state').className = 'speech-state speech-error';
+            }
+        }
+
+        // Stop speech recognition
+        function stopSpeechRecognition() {
+            if (recognition) {
+                speechDetectionActive = false;
+                recognition.stop();
+                speechStatus.classList.add('hidden');
+                speechResult.classList.add('hidden');
+            }
+        }
+
         // Initialize face-api.js and start camera & microphone
         async function startCamera() {
             cameraWarning.classList.add('hidden');
             audioIndicator.classList.remove('hidden');
             apiStatusContainer.style.display = 'block';
             initApiStatusUI();
+            speechStatus.classList.remove('hidden');
             
             try {
                 // Start camera and microphone
@@ -733,8 +873,8 @@
                 videoPreview.width = 640;
                 videoPreview.height = 480;
                 
-                // Initialize audio analysis
-                initAudioAnalysis(stream);
+                // Initialize speech recognition
+                initSpeechRecognition();
                 
                 // Start Gemini API scanning
                 startAutoScan();
@@ -748,48 +888,8 @@
                 cameraWarning.classList.remove('hidden');
                 audioIndicator.classList.add('hidden');
                 apiStatusContainer.style.display = 'none';
+                speechStatus.classList.add('hidden');
             }
-        }
-
-        // Initialize audio analysis
-        function initAudioAnalysis(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            
-            microphone = audioContext.createMediaStreamSource(stream);
-            microphone.connect(analyser);
-            
-            // Start audio monitoring
-            audioCheckInterval = setInterval(checkAudioLevel, 500); // Check audio every 500ms
-        }
-
-        // Check audio level for speech detection
-        function checkAudioLevel() {
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
-            
-            let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i];
-            }
-            const average = sum / bufferLength;
-            
-            // Detect significant audio change (speech)
-            if (average > 30 && Math.abs(average - lastAudioLevel) > 10) {
-                speakingCount++;
-                
-                // If speaking detected multiple times in a row
-                if (speakingCount > 2) {
-                    handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
-                    speakingCount = 0;
-                }
-            } else {
-                speakingCount = Math.max(0, speakingCount - 1);
-            }
-            
-            lastAudioLevel = average;
         }
 
         // Capture image from video stream
@@ -1141,14 +1241,8 @@
             // Stop API scanning
             stopAllScans();
             
-            // Stop audio analysis
-            clearInterval(audioCheckInterval);
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close();
-            }
-            if (microphone) {
-                microphone.disconnect();
-            }
+            // Stop speech recognition
+            stopSpeechRecognition();
             
             // Stop camera
             if (cameraStream) {
@@ -1198,6 +1292,8 @@
                 examCompletedSection.classList.remove('hidden');
                 audioIndicator.classList.add('hidden');
                 apiStatusContainer.style.display = 'none';
+                speechStatus.classList.add('hidden');
+                speechResult.classList.add('hidden');
                 
                 // Exit fullscreen
                 if (document.exitFullscreen) {
