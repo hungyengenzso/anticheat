@@ -192,6 +192,33 @@
         .speech-error {
             color: #f44336;
         }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -373,6 +400,12 @@
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>Đang nộp bài...</p>
+    </div>
+
     <script>
         // Firebase configuration
         const firebaseConfig = {
@@ -435,6 +468,7 @@
         const apiStatusContainer = document.getElementById('api-status');
         const speechRecognitionStatus = document.getElementById('speech-recognition-status');
         const speechStateElement = speechRecognitionStatus.querySelector('.speech-state');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
         // Variables
         let currentExam = null;
@@ -446,6 +480,7 @@
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
+        let isExamSubmitted = false; // Thêm biến kiểm tra trạng thái nộp bài
         
         // Speech recognition variables
         let recognition = null;
@@ -503,7 +538,7 @@
         startExamBtn.addEventListener('click', startExam);
         scanQrBtn.addEventListener('click', startQRScan);
         stopScanBtn.addEventListener('click', stopQRScan);
-        examForm.addEventListener('submit', submitExam);
+        examForm.addEventListener('submit', handleSubmitExam);
         exitExamBtn.addEventListener('click', exitExam);
         enterFullscreenBtn.addEventListener('click', enterFullscreen);
         startCameraBtn.addEventListener('click', startCamera);
@@ -756,6 +791,9 @@
                 };
                 
                 recognition.onresult = (event) => {
+                    // Nếu bài thi đã nộp thì không xử lý nữa
+                    if (isExamSubmitted) return;
+                    
                     // Reset the speech timeout whenever we get results
                     if (speechTimeout) {
                         clearTimeout(speechTimeout);
@@ -777,7 +815,9 @@
                 
                 // Restart recognition if it stops
                 recognition.onend = () => {
-                    recognition.start();
+                    if (!isExamSubmitted) {
+                        recognition.start();
+                    }
                 };
                 
             } catch (error) {
@@ -844,6 +884,9 @@
 
         // Analyze image using Gemini API
         async function analyzeImage(apiKeyIndex) {
+            // Nếu bài thi đã nộp thì không phân tích nữa
+            if (isExamSubmitted) return null;
+            
             const apiKey = API_KEYS[apiKeyIndex];
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
             
@@ -909,6 +952,9 @@
 
         // Handle detection results from Gemini API
         function handleDetection(result, apiKeyIndex) {
+            // Nếu bài thi đã nộp thì không xử lý nữa
+            if (isExamSubmitted) return;
+            
             if (!result) return;
             
             lastDetectionResult = result;
@@ -934,6 +980,9 @@
 
         // Handle violation with cooldown
         function handleViolation(type, message) {
+            // Nếu bài thi đã nộp thì không ghi nhận vi phạm nữa
+            if (isExamSubmitted) return;
+            
             const now = Date.now();
             const violation = activeViolations[type];
             
@@ -967,6 +1016,9 @@
         // Setup scanner for each API key
         function setupApiScanner(apiKeyIndex) {
             return setInterval(async () => {
+                // Nếu bài thi đã nộp thì không quét nữa
+                if (isExamSubmitted) return;
+                
                 const result = await analyzeImage(apiKeyIndex);
                 if (result) {
                     handleDetection(result, apiKeyIndex);
@@ -1009,6 +1061,9 @@
 
         // Record violation to Firestore (optimized)
         async function recordViolation(type, details) {
+            // Nếu bài thi đã nộp thì không ghi nhận vi phạm nữa
+            if (isExamSubmitted) return;
+            
             violationCount++;
             
             // Capture screenshot in background without blocking
@@ -1038,6 +1093,9 @@
 
         // Show violation warning to user
         function showViolationWarning(message) {
+            // Nếu bài thi đã nộp thì không hiển thị cảnh báo nữa
+            if (isExamSubmitted) return;
+            
             // Clear previous warning if exists
             const existingWarning = document.querySelector('.violation-warning');
             if (existingWarning) {
@@ -1076,6 +1134,9 @@
 
         // Check fullscreen status
         function checkFullscreen() {
+            // Nếu bài thi đã nộp thì không kiểm tra nữa
+            if (isExamSubmitted) return;
+            
             const isFullscreen = document.fullscreenElement || 
                                document.webkitFullscreenElement || 
                                document.msFullscreenElement;
@@ -1090,6 +1151,9 @@
 
         // Handle visibility change (tab switching)
         function handleVisibilityChange() {
+            // Nếu bài thi đã nộp thì không kiểm tra nữa
+            if (isExamSubmitted) return;
+            
             if (document.hidden && examQuestionsSection.classList.contains('hidden') === false) {
                 recordViolation(VIOLATION_TYPES.TAB_SWITCH, 'Thí sinh chuyển tab trình duyệt');
                 showViolationWarning('CẢNH BÁO: Bạn đã chuyển tab trình duyệt. Hành động này đã được ghi lại.');
@@ -1161,7 +1225,7 @@
         function updateTimer() {
             if (timeLeft <= 0) {
                 clearInterval(examTimer);
-                submitExam();
+                handleSubmitExam();
                 return;
             }
             
@@ -1173,8 +1237,28 @@
             timeLeft--;
         }
 
-        // Clean up resources
-        function stopMonitoring() {
+        // Handle exam submission with loading effect
+        function handleSubmitExam(e) {
+            if (e) e.preventDefault();
+            
+            // Đánh dấu bài thi đã nộp
+            isExamSubmitted = true;
+            
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+            
+            // Immediately stop anti-cheat monitoring
+            stopAntiCheatMonitoring();
+            
+            // After 1 second, stop camera and mic, then submit
+            setTimeout(() => {
+                stopCameraAndMic();
+                submitExam();
+            }, 1000);
+        }
+
+        // Stop anti-cheat monitoring immediately
+        function stopAntiCheatMonitoring() {
             // Stop API scanning
             stopAllScans();
             
@@ -1183,19 +1267,26 @@
                 recognition.stop();
             }
             
-            // Stop camera
+            // Hide monitoring indicators
+            audioIndicator.classList.add('hidden');
+            apiStatusContainer.style.display = 'none';
+            speechRecognitionStatus.classList.add('hidden');
+        }
+
+        // Stop camera and microphone
+        function stopCameraAndMic() {
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
             }
+            
+            // Hide video preview
+            videoContainer.classList.add('hidden');
         }
 
         // Submit exam
-        async function submitExam(e) {
-            if (e) e.preventDefault();
-            
+        async function submitExam() {
             clearInterval(examTimer);
-            stopMonitoring();
             
             // Collect answers
             const answers = [];
@@ -1227,11 +1318,12 @@
                     status: 'pending'
                 });
                 
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+                
+                // Show completed section
                 examQuestionsSection.classList.add('hidden');
                 examCompletedSection.classList.remove('hidden');
-                audioIndicator.classList.add('hidden');
-                apiStatusContainer.style.display = 'none';
-                speechRecognitionStatus.classList.add('hidden');
                 
                 // Exit fullscreen
                 if (document.exitFullscreen) {
@@ -1243,13 +1335,15 @@
                 }
             } catch (error) {
                 console.error('Error submitting exam: ', error);
+                loadingOverlay.classList.add('hidden');
                 alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
             }
         }
 
         // Exit exam
         function exitExam() {
-            stopMonitoring();
+            stopAntiCheatMonitoring();
+            stopCameraAndMic();
             window.location.href = 'home.html';
         }
     </script>
