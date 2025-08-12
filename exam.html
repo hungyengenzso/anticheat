@@ -175,6 +175,50 @@
         .api-error {
             color: #f44336;
         }
+        #speech-recognition-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 1000;
+        }
+        .speech-active {
+            color: #4CAF50;
+        }
+        .speech-error {
+            color: #f44336;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100">
@@ -222,6 +266,11 @@
     <!-- API Status (hidden by default) -->
     <div id="api-status">
         <!-- API key status will be added dynamically -->
+    </div>
+
+    <!-- Speech Recognition Status -->
+    <div id="speech-recognition-status" class="hidden">
+        Trạng thái nhận dạng giọng nói: <span class="speech-state">Tắt</span>
     </div>
 
     <!-- Audio Indicator -->
@@ -351,6 +400,12 @@
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p>Đang nộp bài...</p>
+    </div>
+
     <script>
         // Firebase configuration
         const firebaseConfig = {
@@ -411,6 +466,9 @@
         const confirmPhotoBtn = document.getElementById('confirm-photo-btn');
         const photoContainer = document.getElementById('photo-container');
         const apiStatusContainer = document.getElementById('api-status');
+        const speechRecognitionStatus = document.getElementById('speech-recognition-status');
+        const speechStateElement = speechRecognitionStatus.querySelector('.speech-state');
+        const loadingOverlay = document.getElementById('loading-overlay');
 
         // Variables
         let currentExam = null;
@@ -418,14 +476,16 @@
         let timeLeft = 0;
         let examStartTime = null;
         let cameraStream = null;
-        let audioStream = null;
-        let audioContext = null;
-        let analyser = null;
-        let microphone = null;
         let qrScannerActive = false;
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
+        
+        // Speech recognition variables
+        let recognition = null;
+        let isSpeechDetected = false;
+        let speechTimeout = null;
+        const SPEECH_TIMEOUT_DURATION = 3000; // 3 seconds of silence before resetting
         
         // Gemini API variables
         const API_KEYS = [
@@ -439,9 +499,6 @@
         let apiKeyElements = [];
         let apiKeyStats = [];
         let lastDetectionResult = null;
-        let speakingCount = 0;
-        let lastAudioLevel = 0;
-        let audioCheckInterval;
         
         // Violation tracking
         const VIOLATION_TYPES = {
@@ -480,7 +537,7 @@
         startExamBtn.addEventListener('click', startExam);
         scanQrBtn.addEventListener('click', startQRScan);
         stopScanBtn.addEventListener('click', stopQRScan);
-        examForm.addEventListener('submit', submitExam);
+        examForm.addEventListener('submit', handleSubmitExam);
         exitExamBtn.addEventListener('click', exitExam);
         enterFullscreenBtn.addEventListener('click', enterFullscreen);
         startCameraBtn.addEventListener('click', startCamera);
@@ -710,6 +767,61 @@
             cameraWarning.classList.remove('hidden');
         }
 
+        // Initialize Web Speech API for voice detection
+        function initSpeechRecognition() {
+            try {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'vi-VN'; // Set to Vietnamese language
+                
+                recognition.onstart = () => {
+                    speechRecognitionStatus.classList.remove('hidden');
+                    speechStateElement.textContent = 'Đang hoạt động';
+                    speechStateElement.className = 'speech-state speech-active';
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    speechStateElement.textContent = 'Lỗi: ' + event.error;
+                    speechStateElement.className = 'speech-state speech-error';
+                };
+                
+                recognition.onresult = (event) => {
+                    // Reset the speech timeout whenever we get results
+                    if (speechTimeout) {
+                        clearTimeout(speechTimeout);
+                    }
+                    
+                    // Speech detected
+                    if (!isSpeechDetected) {
+                        isSpeechDetected = true;
+                        handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
+                    }
+                    
+                    // Set a timeout to reset speech detection after period of silence
+                    speechTimeout = setTimeout(() => {
+                        isSpeechDetected = false;
+                    }, SPEECH_TIMEOUT_DURATION);
+                };
+                
+                recognition.start();
+                
+                // Restart recognition if it stops
+                recognition.onend = () => {
+                    recognition.start();
+                };
+                
+            } catch (error) {
+                console.error('Speech recognition not supported or error initializing:', error);
+                speechRecognitionStatus.classList.remove('hidden');
+                speechStateElement.textContent = 'Không hỗ trợ';
+                speechStateElement.className = 'speech-state speech-error';
+            }
+        }
+
         // Initialize face-api.js and start camera & microphone
         async function startCamera() {
             cameraWarning.classList.add('hidden');
@@ -733,8 +845,8 @@
                 videoPreview.width = 640;
                 videoPreview.height = 480;
                 
-                // Initialize audio analysis
-                initAudioAnalysis(stream);
+                // Initialize speech recognition
+                initSpeechRecognition();
                 
                 // Start Gemini API scanning
                 startAutoScan();
@@ -749,47 +861,6 @@
                 audioIndicator.classList.add('hidden');
                 apiStatusContainer.style.display = 'none';
             }
-        }
-
-        // Initialize audio analysis
-        function initAudioAnalysis(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            
-            microphone = audioContext.createMediaStreamSource(stream);
-            microphone.connect(analyser);
-            
-            // Start audio monitoring
-            audioCheckInterval = setInterval(checkAudioLevel, 500); // Check audio every 500ms
-        }
-
-        // Check audio level for speech detection
-        function checkAudioLevel() {
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            analyser.getByteFrequencyData(dataArray);
-            
-            let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i];
-            }
-            const average = sum / bufferLength;
-            
-            // Detect significant audio change (speech)
-            if (average > 30 && Math.abs(average - lastAudioLevel) > 10) {
-                speakingCount++;
-                
-                // If speaking detected multiple times in a row
-                if (speakingCount > 2) {
-                    handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
-                    speakingCount = 0;
-                }
-            } else {
-                speakingCount = Math.max(0, speakingCount - 1);
-            }
-            
-            lastAudioLevel = average;
         }
 
         // Capture image from video stream
@@ -1124,7 +1195,7 @@
         function updateTimer() {
             if (timeLeft <= 0) {
                 clearInterval(examTimer);
-                submitExam();
+                handleSubmitExam();
                 return;
             }
             
@@ -1136,33 +1207,53 @@
             timeLeft--;
         }
 
-        // Clean up resources
-        function stopMonitoring() {
+        // Handle exam submission with loading effect
+        function handleSubmitExam(e) {
+            if (e) e.preventDefault();
+            
+            // Show loading overlay
+            loadingOverlay.classList.remove('hidden');
+            
+            // Immediately stop anti-cheat monitoring
+            stopAntiCheatMonitoring();
+            
+            // After 1 second, stop camera and mic, then submit
+            setTimeout(() => {
+                stopCameraAndMic();
+                submitExam();
+            }, 1000);
+        }
+
+        // Stop anti-cheat monitoring immediately
+        function stopAntiCheatMonitoring() {
             // Stop API scanning
             stopAllScans();
             
-            // Stop audio analysis
-            clearInterval(audioCheckInterval);
-            if (audioContext && audioContext.state !== 'closed') {
-                audioContext.close();
-            }
-            if (microphone) {
-                microphone.disconnect();
+            // Stop speech recognition
+            if (recognition) {
+                recognition.stop();
             }
             
-            // Stop camera
+            // Hide monitoring indicators
+            audioIndicator.classList.add('hidden');
+            apiStatusContainer.style.display = 'none';
+            speechRecognitionStatus.classList.add('hidden');
+        }
+
+        // Stop camera and microphone
+        function stopCameraAndMic() {
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
                 cameraStream = null;
             }
+            
+            // Hide video preview
+            videoContainer.classList.add('hidden');
         }
 
         // Submit exam
-        async function submitExam(e) {
-            if (e) e.preventDefault();
-            
+        async function submitExam() {
             clearInterval(examTimer);
-            stopMonitoring();
             
             // Collect answers
             const answers = [];
@@ -1194,10 +1285,12 @@
                     status: 'pending'
                 });
                 
+                // Hide loading overlay
+                loadingOverlay.classList.add('hidden');
+                
+                // Show completed section
                 examQuestionsSection.classList.add('hidden');
                 examCompletedSection.classList.remove('hidden');
-                audioIndicator.classList.add('hidden');
-                apiStatusContainer.style.display = 'none';
                 
                 // Exit fullscreen
                 if (document.exitFullscreen) {
@@ -1209,13 +1302,15 @@
                 }
             } catch (error) {
                 console.error('Error submitting exam: ', error);
+                loadingOverlay.classList.add('hidden');
                 alert('Có lỗi xảy ra khi nộp bài. Vui lòng thử lại.');
             }
         }
 
         // Exit exam
         function exitExam() {
-            stopMonitoring();
+            stopAntiCheatMonitoring();
+            stopCameraAndMic();
             window.location.href = 'home.html';
         }
     </script>
