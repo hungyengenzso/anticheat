@@ -125,29 +125,6 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         }
-        #photo-container {
-            margin: 20px auto;
-            width: 300px;
-            height: 200px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            background-color: #000;
-            position: relative;
-            overflow: hidden;
-        }
-        #photo-preview {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        #capture-btn {
-            margin-top: 10px;
-            background-color: #4f46e5;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
         #canvas {
             display: none;
         }
@@ -298,29 +275,6 @@
         </button>
     </div>
 
-    <!-- Photo Capture Section -->
-    <div id="photo-section" class="hidden">
-        <div class="max-w-4xl mx-auto px-4 py-8">
-            <div class="bg-white shadow rounded-lg p-6 mb-8 text-center">
-                <h1 class="text-2xl font-bold mb-4">Xác thực thí sinh</h1>
-                <p class="mb-4">Vui lòng chụp ảnh chân dung để xác minh danh tính trước khi bắt đầu làm bài</p>
-                
-                <div id="photo-container">
-                    <video id="photo-preview" autoplay muted playsinline></video>
-                    <canvas id="canvas"></canvas>
-                </div>
-                
-                <button id="capture-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
-                    <i class="fas fa-camera mr-2"></i>Chụp ảnh
-                </button>
-                
-                <button id="confirm-photo-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition mt-4 hidden">
-                    <i class="fas fa-check mr-2"></i>Xác nhận ảnh
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- Exam Code Input -->
@@ -459,12 +413,7 @@
         const mobileRegisterLink = document.getElementById('mobile-register-link');
         const mobileExamManagementLink = document.getElementById('mobile-exam-management-link');
         const mobileLogoutLink = document.getElementById('mobile-logout-link');
-        const photoSection = document.getElementById('photo-section');
-        const photoPreview = document.getElementById('photo-preview');
         const canvas = document.getElementById('canvas');
-        const captureBtn = document.getElementById('capture-btn');
-        const confirmPhotoBtn = document.getElementById('confirm-photo-btn');
-        const photoContainer = document.getElementById('photo-container');
         const apiStatusContainer = document.getElementById('api-status');
         const speechRecognitionStatus = document.getElementById('speech-recognition-status');
         const speechStateElement = speechRecognitionStatus.querySelector('.speech-state');
@@ -480,7 +429,8 @@
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
-        let isExamSubmitted = false; // Thêm biến kiểm tra trạng thái nộp bài
+        let isExamSubmitted = false;
+        let photoCaptureTimeout = null;
         
         // Speech recognition variables
         let recognition = null;
@@ -544,8 +494,6 @@
         startCameraBtn.addEventListener('click', startCamera);
         logoutLink.addEventListener('click', signOut);
         mobileLogoutLink.addEventListener('click', signOut);
-        captureBtn.addEventListener('click', capturePhoto);
-        confirmPhotoBtn.addEventListener('click', confirmPhoto);
 
         // Check for fullscreen changes
         document.addEventListener('fullscreenchange', checkFullscreen);
@@ -714,57 +662,24 @@
             // Load questions
             loadQuestions();
             
-            // Show photo capture section
-            photoSection.classList.remove('hidden');
-            startPhotoCapture();
+            // Start photo capture automatically after 2 seconds
+            photoCaptureTimeout = setTimeout(captureStudentPhoto, 2000);
         }
 
-        // Start photo capture
-        function startPhotoCapture() {
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    width: 300, 
-                    height: 200,
-                    facingMode: 'user' 
-                }, 
-                audio: false 
-            })
-            .then(stream => {
-                photoPreview.srcObject = stream;
-            })
-            .catch(err => {
-                console.error("Error accessing camera for photo: ", err);
-                alert("Không thể truy cập camera để chụp ảnh");
-            });
-        }
-
-        // Capture photo
-        function capturePhoto() {
-            canvas.width = photoPreview.videoWidth;
-            canvas.height = photoPreview.videoHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(photoPreview, 0, 0, canvas.width, canvas.height);
+        // Automatically capture student photo
+        function captureStudentPhoto() {
+            const photoCanvas = document.createElement('canvas');
+            photoCanvas.width = videoPreview.videoWidth;
+            photoCanvas.height = videoPreview.videoHeight;
+            const ctx = photoCanvas.getContext('2d');
             
-            // Hide video and show captured photo
-            photoPreview.classList.add('hidden');
-            canvas.classList.remove('hidden');
+            // Draw current video frame to canvas
+            ctx.drawImage(videoPreview, 0, 0, photoCanvas.width, photoCanvas.height);
             
-            // Enable confirm button
-            confirmPhotoBtn.classList.remove('hidden');
-        }
-
-        // Confirm photo and proceed
-        function confirmPhoto() {
-            // Get photo as data URL
-            studentPhoto = canvas.toDataURL('image/jpeg');
+            // Save as data URL
+            studentPhoto = photoCanvas.toDataURL('image/jpeg');
             
-            // Stop photo stream
-            if (photoPreview.srcObject) {
-                photoPreview.srcObject.getTracks().forEach(track => track.stop());
-            }
-            
-            // Hide photo section and show camera warning
-            photoSection.classList.add('hidden');
+            // Show camera warning
             cameraWarning.classList.remove('hidden');
         }
 
@@ -1243,6 +1158,11 @@
             
             // Đánh dấu bài thi đã nộp
             isExamSubmitted = true;
+            
+            // Clear photo capture timeout if it exists
+            if (photoCaptureTimeout) {
+                clearTimeout(photoCaptureTimeout);
+            }
             
             // Show loading overlay
             loadingOverlay.classList.remove('hidden');
