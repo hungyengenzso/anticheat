@@ -61,6 +61,21 @@
             z-index: 9998;
             font-size: 24px;
         }
+        .screenshare-warning {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9997;
+            font-size: 24px;
+        }
         .hidden {
             display: none;
         }
@@ -215,6 +230,22 @@
             animation: spin 1s linear infinite;
             margin-bottom: 15px;
         }
+        #screenshare-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 150px;
+            border: 2px solid #38a169;
+            border-radius: 8px;
+            background-color: #000;
+            z-index: 1000;
+        }
+        #screenshare-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -262,8 +293,13 @@
     <div id="video-container" style="margin-top: 75px;">
         <video id="video-preview" autoplay muted playsinline></video>
     </div>
+    
+    <!-- Screen Share Preview -->
+    <div id="screenshare-container" class="hidden">
+        <video id="screenshare-preview" autoplay muted playsinline></video>
+    </div>
 
-    <!-- API Status (hidden by default) -->
+    <!-- API Status -->
     <div id="api-status">
         <!-- API key status will be added dynamically -->
     </div>
@@ -285,6 +321,16 @@
         <p class="text-center mb-6">Vui lòng vào chế độ toàn màn hình để tiếp tục làm bài</p>
         <button id="enter-fullscreen-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
             <i class="fas fa-expand mr-2"></i>Vào chế độ toàn màn hình
+        </button>
+    </div>
+
+    <!-- Screen Share Warning -->
+    <div id="screenshare-warning" class="screenshare-warning hidden">
+        <i class="fas fa-desktop text-green-500 text-5xl mb-4"></i>
+        <h2 class="text-2xl font-bold mb-2">Yêu cầu chia sẻ màn hình</h2>
+        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần chia sẻ toàn bộ màn hình trong suốt quá trình làm bài. Hệ thống sẽ giám sát để phát hiện các hành vi truy cập tài liệu hoặc công cụ tìm kiếm trái phép.</p>
+        <button id="start-screenshare-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition">
+            <i class="fas fa-desktop mr-2"></i>Chia sẻ màn hình
         </button>
     </div>
 
@@ -469,6 +515,10 @@
         const speechRecognitionStatus = document.getElementById('speech-recognition-status');
         const speechStateElement = speechRecognitionStatus.querySelector('.speech-state');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const screenshareWarning = document.getElementById('screenshare-warning');
+        const startScreenshareBtn = document.getElementById('start-screenshare-btn');
+        const screenshareContainer = document.getElementById('screenshare-container');
+        const screensharePreview = document.getElementById('screenshare-preview');
 
         // Variables
         let currentExam = null;
@@ -480,13 +530,15 @@
         let qrStream = null;
         let violationCount = 0;
         let studentPhoto = null;
-        let isExamSubmitted = false; // Thêm biến kiểm tra trạng thái nộp bài
+        let isExamSubmitted = false;
+        let screenshareStream = null;
+        let screenshareInterval = null;
         
         // Speech recognition variables
         let recognition = null;
         let isSpeechDetected = false;
         let speechTimeout = null;
-        const SPEECH_TIMEOUT_DURATION = 3000; // 3 seconds of silence before resetting
+        const SPEECH_TIMEOUT_DURATION = 3000;
         
         // Gemini API variables
         const API_KEYS = [
@@ -495,11 +547,17 @@
             'AIzaSyAoA--31n5MR7pEQcsbK12BK_RHvZsZlkM',
             'AIzaSyAsFW9nUIfMka7U0ZjGPN8ETzh-q4tYxQ0'
         ];
-        const SCAN_INTERVAL = 1500; // 1.5 giây giữa các lần quét
+        const SCAN_INTERVAL = 1500;
         let apiKeyTimers = [];
         let apiKeyElements = [];
         let apiKeyStats = [];
         let lastDetectionResult = null;
+        
+        // Temporary image storage
+        let tempImages = {
+            camera: Array(API_KEYS.length).fill(null),
+            screen: Array(API_KEYS.length).fill(null)
+        };
         
         // Violation tracking
         const VIOLATION_TYPES = {
@@ -508,17 +566,19 @@
             ELECTRONIC_DEVICE: 'electronic_device',
             AUDIO_DETECTED: 'audio_detected',
             FULLSCREEN_EXIT: 'fullscreen_exit',
-            TAB_SWITCH: 'tab_switch'
+            TAB_SWITCH: 'tab_switch',
+            SCREEN_VIOLATION: 'screen_violation'
         };
         
         let activeViolations = {
             [VIOLATION_TYPES.NO_PERSON]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.MULTIPLE_PEOPLE]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
-            [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 }
+            [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.SCREEN_VIOLATION]: { active: false, timer: null, lastTime: 0 }
         };
         
-        const VIOLATION_COOLDOWN = 4000; // 4 giây
+        const VIOLATION_COOLDOWN = 4000;
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -546,6 +606,7 @@
         mobileLogoutLink.addEventListener('click', signOut);
         captureBtn.addEventListener('click', capturePhoto);
         confirmPhotoBtn.addEventListener('click', confirmPhoto);
+        startScreenshareBtn.addEventListener('click', startScreenShare);
 
         // Check for fullscreen changes
         document.addEventListener('fullscreenchange', checkFullscreen);
@@ -586,12 +647,10 @@
 
         // Cập nhật menu khi đã đăng nhập
         function updateMenuForLoggedInUser() {
-            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên desktop
             loginLink.classList.add('hidden');
             registerLink.classList.add('hidden');
             logoutLink.classList.remove('hidden');
             
-            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
             mobileLoginLink.classList.add('hidden');
             mobileRegisterLink.classList.add('hidden');
             mobileLogoutLink.classList.remove('hidden');
@@ -601,7 +660,6 @@
         function signOut(e) {
             e.preventDefault();
             auth.signOut().then(() => {
-                // Đăng xuất thành công
                 window.location.href = 'home.html';
             }).catch((error) => {
                 console.error('Lỗi khi đăng xuất:', error);
@@ -706,7 +764,7 @@
             examQuestionsCountEl.textContent = currentExam.questions.length;
             
             // Set timer
-            timeLeft = currentExam.time * 60; // Convert to seconds
+            timeLeft = currentExam.time * 60;
             examStartTime = new Date();
             updateTimer();
             examTimer = setInterval(updateTimer, 1000);
@@ -763,9 +821,147 @@
                 photoPreview.srcObject.getTracks().forEach(track => track.stop());
             }
             
-            // Hide photo section and show camera warning
+            // Hide photo section and show screen share warning
             photoSection.classList.add('hidden');
-            cameraWarning.classList.remove('hidden');
+            screenshareWarning.classList.remove('hidden');
+        }
+
+        // Start screen share
+        async function startScreenShare() {
+            try {
+                screenshareStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: "always",
+                        displaySurface: "monitor"
+                    },
+                    audio: false
+                });
+                
+                screensharePreview.srcObject = screenshareStream;
+                screenshareContainer.classList.remove('hidden');
+                screenshareWarning.classList.add('hidden');
+                
+                startScreenMonitoring();
+                
+            } catch (err) {
+                console.error("Lỗi khi chia sẻ màn hình: ", err);
+                alert("Bạn phải chia sẻ màn hình để tiếp tục làm bài thi");
+            }
+        }
+        
+        // Start screen monitoring
+        function startScreenMonitoring() {
+            screenshareInterval = setInterval(async () => {
+                if (isExamSubmitted) return;
+                
+                const screenshot = await captureScreenshotFromScreenShare();
+                
+                // Lưu ảnh tạm vào local storage
+                saveTempImage('screen', 0, screenshot);
+                
+                const result = await analyzeScreenContent(screenshot);
+                if (result) {
+                    handleScreenViolation(result, screenshot);
+                }
+            }, 8000);
+        }
+        
+        // Capture screenshot from screen share
+        async function captureScreenshotFromScreenShare() {
+            return new Promise((resolve) => {
+                const canvas = document.createElement('canvas');
+                canvas.width = screensharePreview.videoWidth;
+                canvas.height = screensharePreview.videoHeight;
+                const ctx = canvas.getContext('2d');
+                
+                requestAnimationFrame(() => {
+                    ctx.drawImage(screensharePreview, 0, 0, canvas.width, canvas.height);
+                    const screenshot = canvas.toDataURL('image/jpeg', 0.7);
+                    resolve(screenshot);
+                });
+            });
+        }
+        
+        // Analyze screen content
+        async function analyzeScreenContent(screenshot) {
+            const apiKey = API_KEYS[0];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+            
+            const prompt = `Phân tích hình ảnh màn hình máy tính và xác định xem người dùng có đang:
+            1. Sử dụng trình duyệt web (Google, Bing, Cốc Cốc, v.v.)
+            2. Sử dụng ứng dụng chat (Facebook Messenger, Zalo, WhatsApp, v.v.)
+            3. Sử dụng công cụ AI (ChatGPT, Gemini, Bing AI, v.v.)
+            4. Mở tài liệu, sách, PDF không được phép
+            5. Bất kỳ hình thức tra cứu thông tin nào khác
+            
+            Trả lời theo định dạng JSON chính xác:
+            {
+                "violation_detected": true/false,
+                "violation_type": "Mô tả ngắn gọn vi phạm",
+                "confidence": độ tin cậy từ 0-100
+            }
+            
+            Chỉ trả lời bằng JSON.`;
+            
+            const requestData = {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }, {
+                        inlineData: {
+                            mimeType: "image/jpeg",
+                            data: screenshot.split(',')[1]
+                        }
+                    }]
+                }]
+            };
+            
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                
+                if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const responseText = data.candidates[0].content.parts[0].text;
+                    try {
+                        const jsonStart = responseText.indexOf('{');
+                        const jsonEnd = responseText.lastIndexOf('}') + 1;
+                        const jsonStr = responseText.substring(jsonStart, jsonEnd);
+                        const result = JSON.parse(jsonStr);
+                        
+                        return result;
+                    } catch (e) {
+                        console.error("Lỗi phân tích JSON màn hình:", e);
+                        return null;
+                    }
+                }
+                return null;
+            } catch (error) {
+                console.error("Lỗi phân tích màn hình:", error);
+                return null;
+            }
+        }
+        
+        // Handle screen violation
+        function handleScreenViolation(result, screenshot) {
+            if (!result || !result.violation_detected || result.confidence < 70) {
+                // Xóa ảnh tạm nếu không có vi phạm
+                removeTempImage('screen', 0);
+                return;
+            }
+            
+            // Lưu ảnh vi phạm chính thức
+            saveViolationImage('screen', 0, screenshot);
+            
+            recordViolation('screen_violation', `Phát hiện hành vi tra cứu tài liệu: ${result.violation_type} (Độ tin cậy: ${result.confidence}%)`);
+            
+            showViolationWarning(`CẢNH BÁO: Phát hiện hành vi tra cứu tài liệu - ${result.violation_type}`);
         }
 
         // Initialize Web Speech API for voice detection
@@ -776,7 +972,7 @@
                 
                 recognition.continuous = true;
                 recognition.interimResults = true;
-                recognition.lang = 'vi-VN'; // Set to Vietnamese language
+                recognition.lang = 'vi-VN';
                 
                 recognition.onstart = () => {
                     speechRecognitionStatus.classList.remove('hidden');
@@ -791,21 +987,17 @@
                 };
                 
                 recognition.onresult = (event) => {
-                    // Nếu bài thi đã nộp thì không xử lý nữa
                     if (isExamSubmitted) return;
                     
-                    // Reset the speech timeout whenever we get results
                     if (speechTimeout) {
                         clearTimeout(speechTimeout);
                     }
                     
-                    // Speech detected
                     if (!isSpeechDetected) {
                         isSpeechDetected = true;
                         handleViolation(VIOLATION_TYPES.AUDIO_DETECTED, 'Phát hiện tiếng nói trong quá trình thi');
                     }
                     
-                    // Set a timeout to reset speech detection after period of silence
                     speechTimeout = setTimeout(() => {
                         isSpeechDetected = false;
                     }, SPEECH_TIMEOUT_DURATION);
@@ -813,7 +1005,6 @@
                 
                 recognition.start();
                 
-                // Restart recognition if it stops
                 recognition.onend = () => {
                     if (!isExamSubmitted) {
                         recognition.start();
@@ -836,7 +1027,6 @@
             initApiStatusUI();
             
             try {
-                // Start camera and microphone
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { 
                         width: 640, 
@@ -851,13 +1041,10 @@
                 videoPreview.width = 640;
                 videoPreview.height = 480;
                 
-                // Initialize speech recognition
                 initSpeechRecognition();
                 
-                // Start Gemini API scanning
                 startAutoScan();
                 
-                // Enter fullscreen mode
                 enterFullscreen();
                 
             } catch (err) {
@@ -882,9 +1069,30 @@
             return canvas.toDataURL('image/jpeg', 0.9);
         }
 
+        // Save temporary image to local storage
+        function saveTempImage(type, apiKeyIndex, imageData) {
+            const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
+            localStorage.setItem(key, imageData);
+            tempImages[type][apiKeyIndex] = key;
+        }
+        
+        // Remove temporary image from local storage
+        function removeTempImage(type, apiKeyIndex) {
+            const key = tempImages[type][apiKeyIndex];
+            if (key) {
+                localStorage.removeItem(key);
+                tempImages[type][apiKeyIndex] = null;
+            }
+        }
+        
+        // Save violation image to local storage
+        function saveViolationImage(type, apiKeyIndex, imageData) {
+            const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
+            localStorage.setItem(key, imageData);
+        }
+
         // Analyze image using Gemini API
         async function analyzeImage(apiKeyIndex) {
-            // Nếu bài thi đã nộp thì không phân tích nữa
             if (isExamSubmitted) return null;
             
             const apiKey = API_KEYS[apiKeyIndex];
@@ -899,6 +1107,10 @@
                 Lưu ý: Máy tính cầm tay (casio) không tính là thiết bị điện tử. Chỉ trả lời bằng JSON.`;
             
             const imageData = captureImage();
+            
+            // Lưu ảnh tạm vào local storage
+            saveTempImage('camera', apiKeyIndex, imageData);
+            
             const requestData = {
                 contents: [{
                     parts: [{
@@ -952,49 +1164,69 @@
 
         // Handle detection results from Gemini API
         function handleDetection(result, apiKeyIndex) {
-            // Nếu bài thi đã nộp thì không xử lý nữa
             if (isExamSubmitted) return;
             
-            if (!result) return;
+            if (!result) {
+                // Xóa ảnh tạm nếu không có kết quả
+                removeTempImage('camera', apiKeyIndex);
+                return;
+            }
             
             lastDetectionResult = result;
             
             // Check number of people
             if (result.people === 0) {
+                // Lưu ảnh vi phạm chính thức
+                const violationImage = localStorage.getItem(tempImages.camera[apiKeyIndex]);
+                if (violationImage) {
+                    saveViolationImage('camera', apiKeyIndex, violationImage);
+                }
+                
                 handleViolation(VIOLATION_TYPES.NO_PERSON, "Không phát hiện khuôn mặt trong camera");
             } else if (result.people > 1) {
+                // Lưu ảnh vi phạm chính thức
+                const violationImage = localStorage.getItem(tempImages.camera[apiKeyIndex]);
+                if (violationImage) {
+                    saveViolationImage('camera', apiKeyIndex, violationImage);
+                }
+                
                 handleViolation(VIOLATION_TYPES.MULTIPLE_PEOPLE, `Phát hiện ${result.people} khuôn mặt trong camera (chỉ cho phép 1 người)`);
             } else {
-                // Reset violation timers if no violation
+                // Xóa ảnh tạm nếu không có vi phạm
+                removeTempImage('camera', apiKeyIndex);
                 resetViolationTimer(VIOLATION_TYPES.NO_PERSON);
                 resetViolationTimer(VIOLATION_TYPES.MULTIPLE_PEOPLE);
             }
             
             // Check for electronic devices
             if (result.electronic_devices && result.electronic_devices.length > 0) {
+                // Lưu ảnh vi phạm chính thức
+                const violationImage = localStorage.getItem(tempImages.camera[apiKeyIndex]);
+                if (violationImage) {
+                    saveViolationImage('camera', apiKeyIndex, violationImage);
+                }
+                
                 handleViolation(VIOLATION_TYPES.ELECTRONIC_DEVICE, `Phát hiện thiết bị điện tử: ${result.electronic_devices.join(', ')}`);
             } else {
+                // Xóa ảnh tạm nếu không có vi phạm
+                removeTempImage('camera', apiKeyIndex);
                 resetViolationTimer(VIOLATION_TYPES.ELECTRONIC_DEVICE);
             }
         }
 
         // Handle violation with cooldown
         function handleViolation(type, message) {
-            // Nếu bài thi đã nộp thì không ghi nhận vi phạm nữa
             if (isExamSubmitted) return;
             
             const now = Date.now();
             const violation = activeViolations[type];
             
-            // If violation is not active or cooldown has passed
             if (!violation.active || now - violation.lastTime > VIOLATION_COOLDOWN) {
                 violation.active = true;
                 violation.lastTime = now;
                 
-                // Record the violation
                 recordViolation(type, message);
                 
-                // Set timer to reset violation status after cooldown
                 if (violation.timer) {
                     clearTimeout(violation.timer);
                 }
@@ -1016,7 +1248,6 @@
         // Setup scanner for each API key
         function setupApiScanner(apiKeyIndex) {
             return setInterval(async () => {
-                // Nếu bài thi đã nộp thì không quét nữa
                 if (isExamSubmitted) return;
                 
                 const result = await analyzeImage(apiKeyIndex);
@@ -1028,9 +1259,7 @@
 
         // Start auto scanning with all API keys
         function startAutoScan() {
-            // Initialize timers for each API key
             API_KEYS.forEach((_, index) => {
-                // Each API key starts scanning at different times
                 setTimeout(() => {
                     apiKeyTimers[index] = setupApiScanner(index);
                 }, index * SCAN_INTERVAL);
@@ -1050,7 +1279,6 @@
                 canvas.height = videoPreview.videoHeight;
                 const ctx = canvas.getContext('2d');
                 
-                // Use requestAnimationFrame for smooth capture
                 requestAnimationFrame(() => {
                     ctx.drawImage(videoPreview, 0, 0, canvas.width, canvas.height);
                     const screenshot = canvas.toDataURL('image/jpeg', 0.7);
@@ -1061,15 +1289,12 @@
 
         // Record violation to Firestore (optimized)
         async function recordViolation(type, details) {
-            // Nếu bài thi đã nộp thì không ghi nhận vi phạm nữa
             if (isExamSubmitted) return;
             
             violationCount++;
             
-            // Capture screenshot in background without blocking
             const screenshot = await captureScreenshot();
             
-            // Prepare violation data
             const violationData = {
                 examId: currentExam.id,
                 studentId: auth.currentUser.uid,
@@ -1082,28 +1307,23 @@
                 devicesDetected: lastDetectionResult?.electronic_devices?.join(', ') || 'none'
             };
             
-            // Save to Firestore (don't wait for completion)
             db.collection('violations').add(violationData)
                 .then(() => console.log('Violation recorded:', type))
                 .catch(error => console.error('Error recording violation: ', error));
             
-            // Show warning to user
             showViolationWarning(details);
         }
 
         // Show violation warning to user
         function showViolationWarning(message) {
-            // Nếu bài thi đã nộp thì không hiển thị cảnh báo nữa
             if (isExamSubmitted) return;
             
-            // Clear previous warning if exists
             const existingWarning = document.querySelector('.violation-warning');
             if (existingWarning) {
                 existingWarning.remove();
                 clearTimeout(violationWarningTimeout);
             }
             
-            // Create new warning
             const warningDiv = document.createElement('div');
             warningDiv.className = 'violation-warning';
             warningDiv.innerHTML = `
@@ -1112,7 +1332,6 @@
             `;
             document.body.appendChild(warningDiv);
             
-            // Auto hide after 5 seconds
             violationWarningTimeout = setTimeout(() => {
                 warningDiv.remove();
             }, 5000);
@@ -1124,9 +1343,9 @@
                 const elem = document.documentElement;
                 if (elem.requestFullscreen) {
                     elem.requestFullscreen();
-                } else if (elem.webkitRequestFullscreen) { /* Safari */
+                } else if (elem.webkitRequestFullscreen) {
                     elem.webkitRequestFullscreen();
-                } else if (elem.msRequestFullscreen) { /* IE11 */
+                } else if (elem.msRequestFullscreen) {
                     elem.msRequestFullscreen();
                 }
             }
@@ -1134,7 +1353,6 @@
 
         // Check fullscreen status
         function checkFullscreen() {
-            // Nếu bài thi đã nộp thì không kiểm tra nữa
             if (isExamSubmitted) return;
             
             const isFullscreen = document.fullscreenElement || 
@@ -1151,7 +1369,6 @@
 
         // Handle visibility change (tab switching)
         function handleVisibilityChange() {
-            // Nếu bài thi đã nộp thì không kiểm tra nữa
             if (isExamSubmitted) return;
             
             if (document.hidden && examQuestionsSection.classList.contains('hidden') === false) {
@@ -1241,16 +1458,12 @@
         function handleSubmitExam(e) {
             if (e) e.preventDefault();
             
-            // Đánh dấu bài thi đã nộp
             isExamSubmitted = true;
             
-            // Show loading overlay
             loadingOverlay.classList.remove('hidden');
             
-            // Immediately stop anti-cheat monitoring
             stopAntiCheatMonitoring();
             
-            // After 1 second, stop camera and mic, then submit
             setTimeout(() => {
                 stopCameraAndMic();
                 submitExam();
@@ -1259,18 +1472,46 @@
 
         // Stop anti-cheat monitoring immediately
         function stopAntiCheatMonitoring() {
-            // Stop API scanning
             stopAllScans();
             
-            // Stop speech recognition
             if (recognition) {
                 recognition.stop();
             }
             
-            // Hide monitoring indicators
+            if (screenshareInterval) {
+                clearInterval(screenshareInterval);
+            }
+            
+            if (screenshareStream) {
+                screenshareStream.getTracks().forEach(track => track.stop());
+            }
+            
             audioIndicator.classList.add('hidden');
             apiStatusContainer.style.display = 'none';
             speechRecognitionStatus.classList.add('hidden');
+            screenshareContainer.classList.add('hidden');
+            
+            // Xóa tất cả ảnh tạm
+            clearAllTempImages();
+        }
+        
+        // Clear all temporary images
+        function clearAllTempImages() {
+            // Xóa ảnh tạm camera
+            for (let i = 0; i < API_KEYS.length; i++) {
+                if (tempImages.camera[i]) {
+                    localStorage.removeItem(tempImages.camera[i]);
+                    tempImages.camera[i] = null;
+                }
+            }
+            
+            // Xóa ảnh tạm màn hình
+            for (let i = 0; i < API_KEYS.length; i++) {
+                if (tempImages.screen[i]) {
+                    localStorage.removeItem(tempImages.screen[i]);
+                    tempImages.screen[i] = null;
+                }
+            }
         }
 
         // Stop camera and microphone
@@ -1280,7 +1521,6 @@
                 cameraStream = null;
             }
             
-            // Hide video preview
             videoContainer.classList.add('hidden');
         }
 
@@ -1288,7 +1528,6 @@
         async function submitExam() {
             clearInterval(examTimer);
             
-            // Collect answers
             const answers = [];
             const formData = new FormData(examForm);
             
@@ -1296,16 +1535,13 @@
                 const answer = formData.get(`q${index}`);
                 answers.push({
                     answer: answer || '',
-                    // For essay questions, we'll add manualScore later when grading
                     manualScore: question.type === 'essay' ? null : 0
                 });
             });
             
-            // Calculate time taken
             const timeTaken = currentExam.time * 60 - timeLeft;
             
             try {
-                // Save exam results
                 await db.collection('exam_results').add({
                     examId: currentExam.id,
                     studentId: auth.currentUser.uid,
@@ -1318,19 +1554,16 @@
                     status: 'pending'
                 });
                 
-                // Hide loading overlay
                 loadingOverlay.classList.add('hidden');
                 
-                // Show completed section
                 examQuestionsSection.classList.add('hidden');
                 examCompletedSection.classList.remove('hidden');
                 
-                // Exit fullscreen
                 if (document.exitFullscreen) {
                     document.exitFullscreen();
-                } else if (document.webkitExitFullscreen) { /* Safari */
+                } else if (document.webkitExitFullscreen) {
                     document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) { /* IE11 */
+                } else if (document.msExitFullscreen) {
                     document.msExitFullscreen();
                 }
             } catch (error) {
