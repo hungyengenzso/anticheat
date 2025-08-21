@@ -1,0 +1,847 @@
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giám sát màn hình chia sẻ - Anti Cheat</title>
+    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        #screen-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #000;
+        }
+        #screen-container {
+            width: 100%;
+            height: 400px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .api-status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            font-size: 10px;
+            z-index: 1000;
+        }
+        .api-key-status {
+            margin: 2px 0;
+        }
+        .api-active {
+            color: #4CAF50;
+        }
+        .api-processing {
+            color: #FFC107;
+        }
+        .api-error {
+            color: #f44336;
+        }
+        .violation-warning {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #e53e3e;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
+            display: flex;
+            align-items: center;
+        }
+        .violation-screenshot {
+            max-width: 300px;
+            border: 2px solid #e53e3e;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid #ffffff;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .instructions {
+            background-color: #f0f9ff;
+            border-left: 4px solid #38bdf8;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .violation-item {
+            transition: all 0.3s ease;
+        }
+        .violation-item:hover {
+            transform: translateX(5px);
+        }
+        .no-violation-indicator {
+            color: #059669;
+            font-weight: bold;
+        }
+        .violation-indicator {
+            color: #dc2626;
+            font-weight: bold;
+        }
+        .clear-violations-btn {
+            margin-top: 1rem;
+        }
+        .debug-info {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .frame-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+        <div class="bg-white shadow rounded-lg p-6 mb-8">
+            <h1 class="text-2xl font-bold mb-4 text-center">Giám sát màn hình chia sẻ</h1>
+            <p class="text-gray-600 mb-6 text-center">
+                Hệ thống chỉ phát hiện các thiết bị điện tử và hành vi bất thường, không tính máy tính đang dùng để thi.
+            </p>
+            
+            <div class="instructions">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-400 text-xl mt-1"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            <strong>Hướng dẫn:</strong> Hệ thống sẽ chỉ phát hiện vi phạm khi thấy:
+                        </p>
+                        <ul class="list-disc list-inside text-sm text-blue-700 mt-2">
+                            <li>Điện thoại di động hoặc máy tính bảng</li>
+                            <li>Hành vi đáng ngờ (trao đổi với người khác, sử dụng tài liệu không được phép)</li>
+                        </ul>
+                        <p class="text-sm text-blue-700 mt-2">
+                            <strong class="font-bold">Máy tính đang dùng để thi sẽ không bị tính là vi phạm.</strong>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <button id="start-screen-share-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition mb-4">
+                    <i class="fas fa-desktop mr-2"></i>Bắt đầu giám sát màn hình
+                </button>
+                
+                <button id="stop-screen-share-btn" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition hidden">
+                    <i class="fas fa-stop mr-2"></i>Dừng giám sát
+                </button>
+            </div>
+            
+            <div id="screen-container" class="hidden">
+                <video id="screen-preview" autoplay muted playsinline></video>
+                <div id="frame-indicator" class="frame-indicator hidden">Frame: <span id="frame-number">0</span></div>
+            </div>
+            
+            <div id="status-container" class="bg-gray-50 p-4 rounded-lg mb-6 hidden">
+                <h2 class="text-lg font-semibold mb-2">Trạng thái giám sát</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <p><span class="font-medium">Trạng thái:</span> <span id="monitoring-status">Chưa kích hoạt</span></p>
+                        <p><span class="font-medium">Lần quét cuối:</span> <span id="last-scan-time">Chưa có</span></p>
+                    </div>
+                    <div>
+                        <p><span class="font-medium">Số vi phạm phát hiện:</span> <span id="violation-count">0</span></p>
+                        <p><span class="font-medium">Kết quả phân tích cuối:</span> <span id="last-analysis-result">Chưa có</span></p>
+                    </div>
+                </div>
+                <div id="debug-info" class="debug-info mt-2 hidden">
+                    <!-- Debug information will be shown here -->
+                </div>
+            </div>
+            
+            <div id="violations-container" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-semibold">Ảnh chụp vi phạm</h2>
+                    <button id="clear-violations-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition clear-violations-btn">
+                        <i class="fas fa-trash mr-2"></i>Xóa tất cả vi phạm
+                    </button>
+                </div>
+                <div id="violation-screenshots" class="grid grid-cols-1 gap-4">
+                    <!-- Screenshots of violations will be added here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Status -->
+    <div id="api-status" class="api-status">
+        <!-- API key status will be added dynamically -->
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loading-spinner"></div>
+        <p id="loading-message">Đang xử lý...</p>
+    </div>
+
+    <script>
+        // DOM elements
+        const startScreenShareBtn = document.getElementById('start-screen-share-btn');
+        const stopScreenShareBtn = document.getElementById('stop-screen-share-btn');
+        const screenContainer = document.getElementById('screen-container');
+        const screenPreview = document.getElementById('screen-preview');
+        const statusContainer = document.getElementById('status-container');
+        const monitoringStatusEl = document.getElementById('monitoring-status');
+        const lastScanTimeEl = document.getElementById('last-scan-time');
+        const violationCountEl = document.getElementById('violation-count');
+        const lastAnalysisResultEl = document.getElementById('last-analysis-result');
+        const violationsContainer = document.getElementById('violations-container');
+        const violationScreenshotsEl = document.getElementById('violation-screenshots');
+        const apiStatusContainer = document.getElementById('api-status');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingMessage = document.getElementById('loading-message');
+        const clearViolationsBtn = document.getElementById('clear-violations-btn');
+        const debugInfoEl = document.getElementById('debug-info');
+        const frameIndicator = document.getElementById('frame-indicator');
+        const frameNumberEl = document.getElementById('frame-number');
+
+        // Gemini API keys
+        const API_KEYS = [
+            'AIzaSyDN3FpLLxpue1y481xaIhrASCVpqbKxvdQ',
+            'AIzaSyDSyoq4gsmAaKgaCD-93WuH7FjhdsRdD84',
+            'AIzaSyAoA--31n5MR7pEQcsbK12BK_RHvZsZlkM',
+            'AIzaSyAsFW9nUIfMka7U0ZjGPN8ETzh-q4tYxQ0'
+        ];
+        const SCAN_INTERVAL = 3000; // 3 giây giữa các lần quét
+        
+        // Variables
+        let screenStream = null;
+        let apiKeyTimers = [];
+        let apiKeyElements = [];
+        let apiKeyStats = [];
+        let lastDetectionResult = null;
+        let violationCount = 0;
+        let isMonitoring = false;
+        let lastScanTimestamp = null;
+        let frameCounter = 0;
+        let currentFrameData = null;
+        let frameUpdateInterval = null;
+        
+        // Violation types
+        const VIOLATION_TYPES = {
+            ELECTRONIC_DEVICE: 'electronic_device',
+            UNAUTHORIZED_ACTIVITY: 'unauthorized_activity'
+        };
+
+        // Event listeners
+        startScreenShareBtn.addEventListener('click', startScreenShare);
+        stopScreenShareBtn.addEventListener('click', stopScreenShare);
+        clearViolationsBtn.addEventListener('click', clearAllViolations);
+
+        // Initialize API status UI
+        function initApiStatusUI() {
+            apiStatusContainer.innerHTML = '';
+            API_KEYS.forEach((key, index) => {
+                const element = document.createElement('div');
+                element.className = 'api-key-status';
+                element.id = `api-key-${index}-status`;
+                element.innerHTML = `API ${index+1}: <span class="api-state">Đang chờ</span>`;
+                apiStatusContainer.appendChild(element);
+                apiKeyElements.push(element);
+                apiKeyStats.push({ usage: 0, errors: 0 });
+            });
+        }
+
+        // Update API key status
+        function updateApiKeyStatus(index, state) {
+            const element = apiKeyElements[index];
+            const stateElement = element.querySelector('.api-state');
+            
+            element.className = `api-key-status api-${state}`;
+            stateElement.textContent = 
+                state === 'active' ? 'Đang hoạt động' :
+                state === 'processing' ? 'Đang xử lý' :
+                state === 'error' ? 'Lỗi' : 'Đang chờ';
+        }
+
+        // Start screen sharing
+        async function startScreenShare() {
+            try {
+                loadingMessage.textContent = 'Đang yêu cầu quyền chia sẻ màn hình...';
+                loadingOverlay.classList.remove('hidden');
+                
+                // Request screen share
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        cursor: "always"
+                    },
+                    audio: false
+                });
+                
+                // Set up event listener for when sharing stops
+                screenStream.getVideoTracks()[0].addEventListener('ended', () => {
+                    stopScreenShare();
+                    alert('Đã dừng chia sẻ màn hình.');
+                });
+                
+                // Show the screen preview
+                screenPreview.srcObject = screenStream;
+                screenContainer.classList.remove('hidden');
+                frameIndicator.classList.remove('hidden');
+                startScreenShareBtn.classList.add('hidden');
+                stopScreenShareBtn.classList.remove('hidden');
+                statusContainer.classList.remove('hidden');
+                
+                // Initialize API status UI
+                initApiStatusUI();
+                
+                // Start frame update interval
+                startFrameUpdates();
+                
+                // Start monitoring
+                isMonitoring = true;
+                monitoringStatusEl.textContent = 'Đang giám sát';
+                startAutoScan();
+                
+                loadingOverlay.classList.add('hidden');
+                
+            } catch (error) {
+                console.error('Error starting screen share:', error);
+                loadingOverlay.classList.add('hidden');
+                alert('Không thể chia sẻ màn hình: ' + error.message);
+            }
+        }
+
+        // Start frame updates
+        function startFrameUpdates() {
+            frameUpdateInterval = setInterval(() => {
+                updateFrame();
+            }, 100); // Cập nhật frame mỗi 100ms
+        }
+
+        // Update frame data
+        function updateFrame() {
+            if (!isMonitoring || !screenPreview.videoWidth || !screenPreview.videoHeight) return;
+            
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = screenPreview.videoWidth;
+                canvas.height = screenPreview.videoHeight;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.drawImage(screenPreview, 0, 0, canvas.width, canvas.height);
+                
+                currentFrameData = canvas.toDataURL('image/jpeg', 0.9);
+                frameCounter++;
+                frameNumberEl.textContent = frameCounter;
+            } catch (error) {
+                console.error("Lỗi khi cập nhật frame:", error);
+            }
+        }
+
+        // Stop screen sharing
+        function stopScreenShare() {
+            isMonitoring = false;
+            
+            // Stop all API scanning
+            stopAllScans();
+            
+            // Stop frame updates
+            if (frameUpdateInterval) {
+                clearInterval(frameUpdateInterval);
+                frameUpdateInterval = null;
+            }
+            
+            // Stop screen stream
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
+            
+            // Reset UI
+            screenContainer.classList.add('hidden');
+            frameIndicator.classList.add('hidden');
+            startScreenShareBtn.classList.remove('hidden');
+            stopScreenShareBtn.classList.add('hidden');
+            monitoringStatusEl.textContent = 'Đã dừng';
+            
+            // Reset frame counter
+            frameCounter = 0;
+            frameNumberEl.textContent = '0';
+            currentFrameData = null;
+        }
+
+        // Capture current frame
+        function captureCurrentFrame() {
+            if (!currentFrameData) {
+                console.error("Không có frame data hiện tại");
+                return null;
+            }
+            
+            return currentFrameData;
+        }
+
+        // Show debug information
+        function showDebugInfo(message) {
+            debugInfoEl.classList.remove('hidden');
+            debugInfoEl.innerHTML = `<strong>Debug:</strong> ${message} - ${new Date().toLocaleTimeString()}`;
+            
+            // Auto hide after 5 seconds
+            setTimeout(() => {
+                debugInfoEl.classList.add('hidden');
+            }, 5000);
+        }
+
+        // Analyze image using Gemini API
+        async function analyzeScreenImage(apiKeyIndex) {
+            if (!isMonitoring) return null;
+            
+            // Lấy frame hiện tại
+            const imageData = captureCurrentFrame();
+            if (!imageData) {
+                console.error("Không thể lấy frame hiện tại");
+                return null;
+            }
+            
+            const apiKey = API_KEYS[apiKeyIndex];
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+            
+            const prompt = `Bạn là hệ thống giám sát thi trực tuyến. Phân tích hình ảnh màn hình máy tính và trả lời theo định dạng JSON chính xác:
+                {
+                    "electronic_devices": [danh sách thiết bị điện tử phát hiện được (chỉ liệt kê điện thoại, máy tính bảng, thiết bị không dây, các vật như mic, máy tính (cái để tính toán ấy))],
+                    "suspicious_activity": mô tả hoạt động đáng ngờ nếu có (ví dụ: đang sử dụng điện thoại, trao đổi với người khác, sử dụng tài liệu không được phép),
+                    "confidence": mức độ chắc chắn từ 0-100
+                }
+                QUAN TRỌNG: 
+                - Vì tôi sẽ gửi ảch chụp màn hình cho bạn nên không tránh khỏi sẽ có các kiểu giao diện của máy tính và giao diện chia sẽ màn hình thì cái đó không được tính là vi phạm
+                - CHIA SẼ MÀN HÌNH VÀ THEO DÕI CAMERA KHÔNG ĐƯỢC TÍNH LÀ VI PHẠM
+                - Dùng máy tính,laptop không được xem là vi phạm vì đây là thiết bị dự thi online
+                - Nếu không có vi phạm, để trống mảng electronic_devices và suspicious_activity.
+                - Chỉ trả lời bằng JSON.`;
+            
+            const requestData = {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }, {
+                        inlineData: {
+                            mimeType: "image/jpeg",
+                            data: imageData.split(',')[1]
+                        }
+                    }]
+                }]
+            };
+            
+            try {
+                updateApiKeyStatus(apiKeyIndex, 'processing');
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestData)
+                });
+                
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const data = await response.json();
+                apiKeyStats[apiKeyIndex].usage++;
+                
+                if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
+                    const responseText = data.candidates[0].content.parts[0].text;
+                    try {
+                        const jsonStart = responseText.indexOf('{');
+                        const jsonEnd = responseText.lastIndexOf('}') + 1;
+                        const jsonStr = responseText.substring(jsonStart, jsonEnd);
+                        const result = JSON.parse(jsonStr);
+                        
+                        updateApiKeyStatus(apiKeyIndex, 'active');
+                        return result;
+                    } catch (e) {
+                        console.error("Lỗi phân tích JSON:", e);
+                        throw new Error("Invalid JSON response");
+                    }
+                }
+                throw new Error("Invalid API response");
+            } catch (error) {
+                console.error(`Lỗi API key ${apiKeyIndex+1}:`, error);
+                apiKeyStats[apiKeyIndex].errors++;
+                updateApiKeyStatus(apiKeyIndex, 'error');
+                return null;
+            }
+        }
+
+        // Handle detection results from Gemini API
+        function handleScreenDetection(result, apiKeyIndex) {
+            if (!isMonitoring || !result) return;
+            
+            lastDetectionResult = result;
+            lastScanTimestamp = new Date().toLocaleTimeString();
+            lastScanTimeEl.textContent = lastScanTimestamp;
+            
+            // Update last analysis result
+            let analysisText = "Không phát hiện vi phạm";
+            let violationDetected = false;
+            
+            // Check for electronic devices (excluding computers)
+            if (result.electronic_devices && result.electronic_devices.length > 0) {
+                // Lọc bỏ các thiết bị không phải là vi phạm
+                const filteredDevices = result.electronic_devices.filter(device => 
+                    !device.toLowerCase().includes('máy tính') && 
+                    !device.toLowerCase().includes('laptop') &&
+                    !device.toLowerCase().includes('computer') &&
+                    !device.toLowerCase().includes('desktop') &&
+                    !device.toLowerCase().includes('pc') &&
+                    !device.toLowerCase().includes('màn hình') &&
+                    !device.toLowerCase().includes('monitor')
+                );
+                
+                if (filteredDevices.length > 0) {
+                    analysisText = `Phát hiện thiết bị: ${filteredDevices.join(', ')}`;
+                    violationDetected = true;
+                    
+                    // Lấy frame hiện tại
+                    const screenshotData = captureCurrentFrame();
+                    if (screenshotData) {
+                        handleViolation(
+                            VIOLATION_TYPES.ELECTRONIC_DEVICE, 
+                            `Phát hiện thiết bị điện tử: ${filteredDevices.join(', ')}`,
+                            screenshotData,
+                            apiKeyIndex
+                        );
+                    } else {
+                        showDebugInfo(`Không thể lấy frame hiện tại cho API ${apiKeyIndex+1}`);
+                    }
+                }
+            }
+            
+            // Check for suspicious activity (only if not empty and meaningful)
+            if (result.suspicious_activity && 
+                result.suspicious_activity.trim().length > 0 &&
+                result.suspicious_activity !== "none" && 
+                result.suspicious_activity !== "không" &&
+                result.suspicious_activity !== "no" &&
+                !result.suspicious_activity.toLowerCase().includes("no suspicious") &&
+                !result.suspicious_activity.toLowerCase().includes("no activity") &&
+                !result.suspicious_activity.toLowerCase().includes("nothing")) {
+                
+                analysisText = `Hoạt động đáng ngờ: ${result.suspicious_activity}`;
+                violationDetected = true;
+                
+                // Lấy frame hiện tại
+                const screenshotData = captureCurrentFrame();
+                if (screenshotData) {
+                    handleViolation(
+                        VIOLATION_TYPES.UNAUTHORIZED_ACTIVITY,
+                        `Hoạt động đáng ngờ: ${result.suspicious_activity}`,
+                        screenshotData,
+                        apiKeyIndex
+                    );
+                } else {
+                    showDebugInfo(`Không thể lấy frame hiện tại cho API ${apiKeyIndex+1}`);
+                }
+            }
+            
+            // Update UI
+            lastAnalysisResultEl.textContent = analysisText;
+            
+            if (violationDetected) {
+                lastAnalysisResultEl.className = "violation-indicator";
+            } else {
+                lastAnalysisResultEl.className = "no-violation-indicator";
+            }
+        }
+
+        // Handle violation
+        function handleViolation(type, message, screenshotData, apiKeyIndex) {
+            if (!screenshotData) {
+                console.error("Không có dữ liệu ảnh chụp màn hình");
+                showDebugInfo("Không có dữ liệu ảnh chụp màn hình để lưu vi phạm");
+                return;
+            }
+            
+            violationCount++;
+            violationCountEl.textContent = violationCount;
+            
+            // Show violation warning
+            showViolationWarning(message);
+            
+            // Save screenshot to localStorage
+            saveViolationScreenshot(type, message, screenshotData);
+            
+            // Display violation in the UI
+            displayViolation(type, message, screenshotData);
+            
+            showDebugInfo(`Đã lưu vi phạm từ API ${apiKeyIndex+1}: ${message} (Frame: ${frameCounter})`);
+        }
+
+        // Show violation warning
+        function showViolationWarning(message) {
+            // Clear previous warning if exists
+            const existingWarning = document.querySelector('.violation-warning');
+            if (existingWarning) {
+                existingWarning.remove();
+                clearTimeout(window.violationWarningTimeout);
+            }
+            
+            // Create new warning
+            const warningDiv = document.createElement('div');
+            warningDiv.className = 'violation-warning';
+            warningDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <span>${message}</span>
+            `;
+            document.body.appendChild(warningDiv);
+            
+            // Auto hide after 5 seconds
+            window.violationWarningTimeout = setTimeout(() => {
+                warningDiv.remove();
+            }, 5000);
+        }
+
+        // Save violation screenshot to localStorage
+        function saveViolationScreenshot(type, message, screenshotData) {
+            try {
+                const violationData = {
+                    id: Date.now(),
+                    type: type,
+                    message: message,
+                    screenshot: screenshotData,
+                    timestamp: new Date().toISOString(),
+                    frame: frameCounter
+                };
+                
+                // Get existing violations or initialize empty array
+                const existingViolations = JSON.parse(localStorage.getItem('screenViolations') || '[]');
+                
+                // Add new violation
+                existingViolations.push(violationData);
+                
+                // Save back to localStorage
+                localStorage.setItem('screenViolations', JSON.stringify(existingViolations));
+                
+                showDebugInfo(`Đã lưu vi phạm vào localStorage. Tổng: ${existingViolations.length}`);
+            } catch (error) {
+                console.error("Lỗi khi lưu vi phạm:", error);
+                showDebugInfo("Lỗi khi lưu vi phạm vào localStorage: " + error.message);
+            }
+        }
+
+        // Display violation in the UI
+        function displayViolation(type, message, screenshotData) {
+            violationsContainer.classList.remove('hidden');
+            
+            const violationDiv = document.createElement('div');
+            violationDiv.className = 'violation-item bg-red-50 p-4 rounded-lg';
+            violationDiv.dataset.id = Date.now();
+            violationDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-semibold text-red-800">${getViolationTypeText(type)}</h3>
+                    <span class="text-xs text-gray-500">${new Date().toLocaleTimeString()} (Frame: ${frameCounter})</span>
+                </div>
+                <p class="text-sm text-red-700 mb-2">${message}</p>
+                <img src="${screenshotData}" alt="Ảnh vi phạm" class="violation-screenshot">
+                <div class="mt-2">
+                    <button class="delete-single-violation bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition">
+                        <i class="fas fa-trash mr-1"></i>Xóa
+                    </button>
+                </div>
+            `;
+            
+            // Thêm sự kiện xóa cho nút xóa vi phạm đơn lẻ
+            const deleteBtn = violationDiv.querySelector('.delete-single-violation');
+            deleteBtn.addEventListener('click', () => {
+                deleteSingleViolation(violationDiv.dataset.id);
+            });
+            
+            violationScreenshotsEl.prepend(violationDiv);
+        }
+
+        // Get violation type text
+        function getViolationTypeText(type) {
+            const types = {
+                [VIOLATION_TYPES.ELECTRONIC_DEVICE]: 'Thiết bị điện tử',
+                [VIOLATION_TYPES.UNAUTHORIZED_ACTIVITY]: 'Hoạt động đáng ngờ'
+            };
+            
+            return types[type] || 'Vi phạm';
+        }
+
+        // Setup scanner for each API key
+        function setupApiScanner(apiKeyIndex) {
+            return setInterval(async () => {
+                if (!isMonitoring) return;
+                
+                const result = await analyzeScreenImage(apiKeyIndex);
+                if (result) {
+                    handleScreenDetection(result, apiKeyIndex);
+                }
+            }, API_KEYS.length * SCAN_INTERVAL);
+        }
+
+        // Start auto scanning with all API keys
+        function startAutoScan() {
+            // Initialize timers for each API key
+            API_KEYS.forEach((_, index) => {
+                // Each API key starts scanning at different times
+                setTimeout(() => {
+                    apiKeyTimers[index] = setupApiScanner(index);
+                }, index * SCAN_INTERVAL);
+            });
+        }
+
+        // Stop all scanning
+        function stopAllScans() {
+            apiKeyTimers.forEach(timer => clearInterval(timer));
+            apiKeyTimers = [];
+        }
+
+        // Clear all violations
+        function clearAllViolations() {
+            if (confirm('Bạn có chắc chắn muốn xóa tất cả vi phạm đã lưu?')) {
+                // Xóa khỏi localStorage
+                localStorage.removeItem('screenViolations');
+                
+                // Xóa khỏi giao diện
+                violationScreenshotsEl.innerHTML = '';
+                violationCount = 0;
+                violationCountEl.textContent = '0';
+                
+                // Ẩn container vi phạm nếu không còn vi phạm nào
+                violationsContainer.classList.add('hidden');
+                
+                alert('Đã xóa tất cả vi phạm.');
+                showDebugInfo("Đã xóa tất cả vi phạm");
+            }
+        }
+
+        // Delete single violation
+        function deleteSingleViolation(id) {
+            // Lấy tất cả vi phạm từ localStorage
+            const existingViolations = JSON.parse(localStorage.getItem('screenViolations') || '[]');
+            
+            // Lọc ra vi phạm cần xóa
+            const updatedViolations = existingViolations.filter(v => v.id !== parseInt(id));
+            
+            // Cập nhật localStorage
+            localStorage.setItem('screenViolations', JSON.stringify(updatedViolations));
+            
+            // Xóa khỏi giao diện
+            const violationElement = document.querySelector(`.violation-item[data-id="${id}"]`);
+            if (violationElement) {
+                violationElement.remove();
+            }
+            
+            // Cập nhật số lượng vi phạm
+            violationCount = updatedViolations.length;
+            violationCountEl.textContent = violationCount;
+            
+            // Ẩn container vi phạm nếu không còn vi phạm nào
+            if (violationCount === 0) {
+                violationsContainer.classList.add('hidden');
+            }
+            
+            showDebugInfo(`Đã xóa vi phạm ID: ${id}`);
+        }
+
+        // Load existing violations from localStorage on page load
+        function loadExistingViolations() {
+            try {
+                const existingViolations = JSON.parse(localStorage.getItem('screenViolations') || '[]');
+                
+                if (existingViolations.length > 0) {
+                    violationCount = existingViolations.length;
+                    violationCountEl.textContent = violationCount;
+                    violationsContainer.classList.remove('hidden');
+                    
+                    // Display each violation
+                    existingViolations.forEach(violation => {
+                        const violationDiv = document.createElement('div');
+                        violationDiv.className = 'violation-item bg-red-50 p-4 rounded-lg';
+                        violationDiv.dataset.id = violation.id;
+                        violationDiv.innerHTML = `
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-semibold text-red-800">${getViolationTypeText(violation.type)}</h3>
+                                <span class="text-xs text-gray-500">${new Date(violation.timestamp).toLocaleString()} ${violation.frame ? '(Frame: ' + violation.frame + ')' : ''}</span>
+                            </div>
+                            <p class="text-sm text-red-700 mb-2">${violation.message}</p>
+                            <img src="${violation.screenshot}" alt="Ảnh vi phạm" class="violation-screenshot">
+                            <div class="mt-2">
+                                <button class="delete-single-violation bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition">
+                                    <i class="fas fa-trash mr-1"></i>Xóa
+                                </button>
+                            </div>
+                        `;
+                        
+                        // Thêm sự kiện xóa cho nút xóa vi phạm đơn lẻ
+                        const deleteBtn = violationDiv.querySelector('.delete-single-violation');
+                        deleteBtn.addEventListener('click', () => {
+                            deleteSingleViolation(violationDiv.dataset.id);
+                        });
+                        
+                        violationScreenshotsEl.appendChild(violationDiv);
+                    });
+                    
+                    showDebugInfo(`Đã tải ${existingViolations.length} vi phạm từ localStorage`);
+                }
+            } catch (error) {
+                console.error("Lỗi khi tải vi phạm từ localStorage:", error);
+                showDebugInfo("Lỗi khi tải vi phạm từ localStorage: " + error.message);
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadExistingViolations();
+        });
+    </script>
+</body>
+</html>
