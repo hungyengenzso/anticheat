@@ -11,7 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        /* CSS giữ nguyên từ code gốc */
         body {
             font-family: 'Arial', sans-serif;
             background-color: #f3f4f6;
@@ -390,7 +389,7 @@
             </div>
             <button id="start-exam-btn" class="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition hidden">
                 <i class="fas fa-play mr-2"></i>Bắt đầu làm bài
-            </button>
+                </button>
         </div>
 
         <!-- Exam Info -->
@@ -535,6 +534,9 @@
         let screenshareStream = null;
         let screenshareInterval = null;
         let violationWarningTimeout = null;
+        let fullscreenCheckTimer = null;
+        let isScreenshareActive = false;
+        let screenshareCheckTime = 0;
         
         // Speech recognition variables
         let recognition = null;
@@ -570,7 +572,8 @@
             AUDIO_DETECTED: 'audio_detected',
             FULLSCREEN_EXIT: 'fullscreen_exit',
             TAB_SWITCH: 'tab_switch',
-            SCREEN_VIOLATION: 'screen_violation'
+            SCREEN_VIOLATION: 'screen_violation',
+            SCREENSHARE_DISABLED: 'screenshare_disabled'
         };
         
         let activeViolations = {
@@ -579,10 +582,12 @@
             [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.DOCUMENT_DETECTED]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 },
-            [VIOLATION_TYPES.SCREEN_VIOLATION]: { active: false, timer: null, lastTime: 0 }
+            [VIOLATION_TYPES.SCREEN_VIOLATION]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.SCREENSHARE_DISABLED]: { active: false, timer: null, lastTime: 0 }
         };
         
         const VIOLATION_COOLDOWN = 4000;
+        const SCREENSHARE_CHECK_DELAY = 3000; // 3 giây
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -613,10 +618,10 @@
         startScreenshareBtn.addEventListener('click', startScreenShare);
 
         // Check for fullscreen changes
-        document.addEventListener('fullscreenchange', checkFullscreen);
-        document.addEventListener('webkitfullscreenchange', checkFullscreen);
-        document.addEventListener('mozfullscreenchange', checkFullscreen);
-        document.addEventListener('MSFullscreenChange', checkFullscreen);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
         // Check for visibility changes (tab switching)
         document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -841,9 +846,22 @@
                     audio: false
                 });
                 
+                // Theo dõi trạng thái chia sẻ màn hình
+                isScreenshareActive = true;
+                screenshareCheckTime = Date.now();
+                
                 screensharePreview.srcObject = screenshareStream;
                 screenshareContainer.classList.remove('hidden');
                 screenshareWarning.classList.add('hidden');
+                
+                // Xử lý khi người dùng dừng chia sẻ màn hình
+                screenshareStream.getTracks().forEach(track => {
+                    track.onended = () => {
+                        isScreenshareActive = false;
+                        screenshareContainer.classList.add('hidden');
+                        handleScreenshareEnded();
+                    };
+                });
                 
                 // Tự động bật lại toàn màn hình sau khi chia sẻ màn hình
                 setTimeout(() => {
@@ -855,6 +873,19 @@
                 console.error("Lỗi khi chia sẻ màn hình: ", err);
                 alert("Bạn phải chia sẻ màn hình để tiếp tục làm bài thi");
             }
+        }
+        
+        // Xử lý khi người dùng dừng chia sẻ màn hình
+        function handleScreenshareEnded() {
+            if (isExamSubmitted) return;
+            
+            // Chụp ảnh màn hình cuối cùng trước khi dừng
+            captureScreenshotFromScreenShare().then(screenshot => {
+                recordViolation(VIOLATION_TYPES.SCREENSHARE_DISABLED, 
+                              "Thí sinh đã tắt chia sẻ màn hình", screenshot);
+            });
+            
+            showViolationWarning("CẢNH BÁO: Bạn đã tắt chia sẻ màn hình. Hành động này đã được ghi lại.");
         }
         
         // Start screen monitoring
@@ -896,11 +927,13 @@
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
             
             const prompt = `Phân tích hình ảnh màn hình máy tính và xác định xem người dùng có đang:
-            1. Sử dụng trình duyệt web (Google, Bing, Cốc Cốc, v.v.)
+            1. Sử dụng trình duyệt web (Google, Bing, Cốc Cốc, v.v.) không phải là trang thi trực tuyến
             2. Sử dụng ứng dụng chat (Facebook Messenger, Zalo, WhatsApp, v.v.)
             3. Sử dụng công cụ AI (ChatGPT, Gemini, Bing AI, v.v.)
             4. Mở tài liệu, sách, PDF không được phép
-            5. Bất kỳ hình thức tra cứu thông tin nào khác
+            5. Bất kỳ hình thức tra cứu thông tin nào khác không liên quan đến bài thi
+            
+            Lưu ý: Đây là giao diện trang thi trực tuyến hợp lệ, không tính là vi phạm.
             
             Trả lời theo định dạng JSON chính xác:
             {
@@ -967,7 +1000,7 @@
             // Lưu ảnh vi phạm chính thức
             saveViolationImage('screen', 0, screenshot);
             
-            recordViolation('screen_violation', `Phát hiện hành vi tra cứu tài liệu: ${result.violation_type} (Độ tin cậy: ${result.confidence}%)`);
+            recordViolation('screen_violation', `Phát hiện hành vi tra cứu tài liệu: ${result.violation_type} (Độ tin cậy: ${result.confidence}%)`, screenshot);
             
             showViolationWarning(`CẢNH BÁO: Phát hiện hành vi tra cứu tài liệu - ${result.violation_type}`);
         }
@@ -1308,31 +1341,25 @@
         }
 
         // Record violation to Firestore (optimized)
-        async function recordViolation(type, details) {
+        async function recordViolation(type, details, screenshot = null) {
             if (isExamSubmitted) return;
             
             violationCount++;
             
-            let screenshot = null;
-            
-            // Chọn ảnh phù hợp với loại vi phạm
-            if (type === VIOLATION_TYPES.SCREEN_VIOLATION) {
-                // Lấy ảnh màn hình từ local storage
-                const screenshotKey = tempImages.screen[0];
-                if (screenshotKey) {
-                    screenshot = localStorage.getItem(screenshotKey);
-                }
-            } else {
-                // Lấy ảnh camera từ local storage
-                const cameraKey = tempImages.camera[0];
-                if (cameraKey) {
-                    screenshot = localStorage.getItem(cameraKey);
-                }
-            }
-            
-            // Nếu không có ảnh từ local storage, chụp ảnh mới
+            // Nếu không có ảnh được cung cấp, chụp ảnh mới
             if (!screenshot) {
-                screenshot = await captureScreenshot();
+                if (type === VIOLATION_TYPES.SCREEN_VIOLATION || 
+                    type === VIOLATION_TYPES.TAB_SWITCH || 
+                    type === VIOLATION_TYPES.FULLSCREEN_EXIT ||
+                    type === VIOLATION_TYPES.SCREENSHARE_DISABLED) {
+                    // Đối với vi phạm màn hình, sử dụng ảnh từ chia sẻ màn hình
+                    if (isScreenshareActive) {
+                        screenshot = await captureScreenshotFromScreenShare();
+                    }
+                } else {
+                    // Đối với vi phạm camera, sử dụng ảnh từ camera
+                    screenshot = await captureScreenshot();
+                }
             }
             
             const violationData = {
@@ -1392,19 +1419,28 @@
             }
         }
 
-        // Check fullscreen status
-        function checkFullscreen() {
+        // Handle fullscreen change
+        function handleFullscreenChange() {
             if (isExamSubmitted) return;
             
             const isFullscreen = document.fullscreenElement || 
                                document.webkitFullscreenElement || 
                                document.msFullscreenElement;
             
-            if (!isFullscreen && examQuestionsSection.classList.contains('hidden') === false) {
-                fullscreenWarning.classList.remove('hidden');
-                recordViolation(VIOLATION_TYPES.FULLSCREEN_EXIT, 'Thí sinh thoát chế độ toàn màn hình');
-            } else {
-                fullscreenWarning.classList.add('hidden');
+            // Chỉ kiểm tra vi phạm fullscreen nếu đã qua 3 giây kể từ khi chia sẻ màn hình
+            const currentTime = Date.now();
+            if (isScreenshareActive && currentTime - screenshareCheckTime > SCREENSHARE_CHECK_DELAY) {
+                if (!isFullscreen && examQuestionsSection.classList.contains('hidden') === false) {
+                    fullscreenWarning.classList.remove('hidden');
+                    
+                    // Chụp ảnh màn hình khi vi phạm
+                    captureScreenshotFromScreenShare().then(screenshot => {
+                        recordViolation(VIOLATION_TYPES.FULLSCREEN_EXIT, 
+                                      'Thí sinh thoát chế độ toàn màn hình', screenshot);
+                    });
+                } else {
+                    fullscreenWarning.classList.add('hidden');
+                }
             }
         }
 
@@ -1413,7 +1449,12 @@
             if (isExamSubmitted) return;
             
             if (document.hidden && examQuestionsSection.classList.contains('hidden') === false) {
-                recordViolation(VIOLATION_TYPES.TAB_SWITCH, 'Thí sinh chuyển tab trình duyệt');
+                // Chụp ảnh màn hình khi vi phạm
+                captureScreenshotFromScreenShare().then(screenshot => {
+                    recordViolation(VIOLATION_TYPES.TAB_SWITCH, 
+                                  'Thí sinh chuyển tab trình duyệt', screenshot);
+                });
+                
                 showViolationWarning('CẢNH BÁO: Bạn đã chuyển tab trình duyệt. Hành động này đã được ghi lại.');
             }
         }
