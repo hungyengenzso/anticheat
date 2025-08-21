@@ -11,6 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
+        /* CSS giữ nguyên từ code gốc */
         body {
             font-family: 'Arial', sans-serif;
             background-color: #f3f4f6;
@@ -533,6 +534,7 @@
         let isExamSubmitted = false;
         let screenshareStream = null;
         let screenshareInterval = null;
+        let violationWarningTimeout = null;
         
         // Speech recognition variables
         let recognition = null;
@@ -564,6 +566,7 @@
             NO_PERSON: 'no_person',
             MULTIPLE_PEOPLE: 'multiple_people',
             ELECTRONIC_DEVICE: 'electronic_device',
+            DOCUMENT_DETECTED: 'document_detected',
             AUDIO_DETECTED: 'audio_detected',
             FULLSCREEN_EXIT: 'fullscreen_exit',
             TAB_SWITCH: 'tab_switch',
@@ -574,6 +577,7 @@
             [VIOLATION_TYPES.NO_PERSON]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.MULTIPLE_PEOPLE]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.ELECTRONIC_DEVICE]: { active: false, timer: null, lastTime: 0 },
+            [VIOLATION_TYPES.DOCUMENT_DETECTED]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.AUDIO_DETECTED]: { active: false, timer: null, lastTime: 0 },
             [VIOLATION_TYPES.SCREEN_VIOLATION]: { active: false, timer: null, lastTime: 0 }
         };
@@ -841,7 +845,11 @@
                 screenshareContainer.classList.remove('hidden');
                 screenshareWarning.classList.add('hidden');
                 
-                startScreenMonitoring();
+                // Tự động bật lại toàn màn hình sau khi chia sẻ màn hình
+                setTimeout(() => {
+                    enterFullscreen();
+                    startScreenMonitoring();
+                }, 1000);
                 
             } catch (err) {
                 console.error("Lỗi khi chia sẻ màn hình: ", err);
@@ -1102,6 +1110,7 @@
                 {
                     "people": số lượng người trong hình,
                     "electronic_devices": [danh sách thiết bị điện tử (điện thoại, laptop, máy tính bảng)],
+                    "documents": [danh sách tài liệu, giấy tờ, sách vở],
                     "confidence": mức độ chắc chắn từ 0-100
                 }
                 Lưu ý: Máy tính cầm tay (casio) không tính là thiết bị điện tử. Chỉ trả lời bằng JSON.`;
@@ -1208,9 +1217,20 @@
                 
                 handleViolation(VIOLATION_TYPES.ELECTRONIC_DEVICE, `Phát hiện thiết bị điện tử: ${result.electronic_devices.join(', ')}`);
             } else {
-                // Xóa ảnh tạm nếu không có vi phạm
-                removeTempImage('camera', apiKeyIndex);
                 resetViolationTimer(VIOLATION_TYPES.ELECTRONIC_DEVICE);
+            }
+            
+            // Check for documents
+            if (result.documents && result.documents.length > 0) {
+                // Lưu ảnh vi phạm chính thức
+                const violationImage = localStorage.getItem(tempImages.camera[apiKeyIndex]);
+                if (violationImage) {
+                    saveViolationImage('camera', apiKeyIndex, violationImage);
+                }
+                
+                handleViolation(VIOLATION_TYPES.DOCUMENT_DETECTED, `Phát hiện tài liệu, giấy tờ: ${result.documents.join(', ')}`);
+            } else {
+                resetViolationTimer(VIOLATION_TYPES.DOCUMENT_DETECTED);
             }
         }
 
@@ -1293,7 +1313,27 @@
             
             violationCount++;
             
-            const screenshot = await captureScreenshot();
+            let screenshot = null;
+            
+            // Chọn ảnh phù hợp với loại vi phạm
+            if (type === VIOLATION_TYPES.SCREEN_VIOLATION) {
+                // Lấy ảnh màn hình từ local storage
+                const screenshotKey = tempImages.screen[0];
+                if (screenshotKey) {
+                    screenshot = localStorage.getItem(screenshotKey);
+                }
+            } else {
+                // Lấy ảnh camera từ local storage
+                const cameraKey = tempImages.camera[0];
+                if (cameraKey) {
+                    screenshot = localStorage.getItem(cameraKey);
+                }
+            }
+            
+            // Nếu không có ảnh từ local storage, chụp ảnh mới
+            if (!screenshot) {
+                screenshot = await captureScreenshot();
+            }
             
             const violationData = {
                 examId: currentExam.id,
@@ -1304,7 +1344,8 @@
                 screenshot: screenshot,
                 timestamp: firebase.firestore.FieldValue.serverTimestamp(),
                 faceCount: lastDetectionResult?.people || 0,
-                devicesDetected: lastDetectionResult?.electronic_devices?.join(', ') || 'none'
+                devicesDetected: lastDetectionResult?.electronic_devices?.join(', ') || 'none',
+                documentsDetected: lastDetectionResult?.documents?.join(', ') || 'none'
             };
             
             db.collection('violations').add(violationData)
