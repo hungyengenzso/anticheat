@@ -11,23 +11,39 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <style>
         body {
-            background-color: #f3f4f6;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             font-family: 'Arial', sans-serif;
         }
         .hero-section {
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,128L48,117.3C96,107,192,85,288,112C384,139,480,213,576,218.7C672,224,768,160,864,138.7C960,117,1056,139,1152,149.3C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
         }
         .card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
         }
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
         }
         .active-menu-item {
-            background-color: #7c3aed;
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
             color: white;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
         }
         .mobile-menu {
             transition: all 0.3s ease;
@@ -37,26 +53,75 @@
         .mobile-menu.open {
             max-height: 500px;
         }
+        .feature-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-4">
                     <a href="home.html" class="flex items-center space-x-2">
-                        <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
-                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt text-white text-xl"></i>
+                        </div>
+                        <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">ANTI CHEAT</span>
                     </a>
                 </div>
                 <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
                     <!-- Menu sẽ được cập nhật động bằng JavaScript -->
-                    <a href="home.html" class="px-3 py-2 active-menu-item">Trang chủ</a>
-                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
-                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
-                    <a href="#" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
+                    <a href="home.html" class="px-4 py-2 active-menu-item">Trang chủ</a>
+                    <a href="giamthi.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
                     <button id="mobile-menu-button" class="p-2 focus:outline-none">
@@ -69,6 +134,8 @@
                 <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
                     <!-- Menu mobile sẽ được cập nhật động bằng JavaScript -->
                     <a href="home.html" class="block px-3 py-2 active-menu-item">Trang chủ</a>
+                    <a href="giamthi.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
                     <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-login-link">Đăng nhập</a>
                     <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-register-link">Đăng ký</a>
                     <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-exam-management-link">Quản lý đề thi</a>
@@ -79,47 +146,48 @@
     </nav>
 
     <!-- Hero Section -->
-    <section class="hero-section text-white py-20">
-        <div class="max-w-6xl mx-auto px-4 text-center">
-            <h1 class="text-4xl md:text-5xl font-bold mb-6">Giải pháp chống gian lận thi cử</h1>
-            <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Hệ thống giám sát thi trực tuyến với công nghệ AI phát hiện gian lận hiệu quả</p>
+    <section class="hero-section text-white py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 text-center relative z-10">
+            <h1 class="text-4xl md:text-5xl font-bold mb-6">Giải pháp chống gian lận thi cử thông minh</h1>
+            <p class="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">Hệ thống giám sát thi trực tuyến với công nghệ AI phát hiện gian lận hiệu quả, bảo vệ sự công bằng trong giáo dục</p>
             <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <a href="exam.html" class="bg-white text-indigo-600 font-bold px-8 py-3 rounded-lg hover:bg-gray-100 transition">Thi ngay</a>
-                <a href="register.html" class="bg-indigo-800 text-white font-bold px-8 py-3 rounded-lg hover:bg-indigo-900 transition" id="register-button">Đăng ký tài khoản</a>
+                <a href="exam.html" class="btn-secondary font-bold px-8 py-3 rounded-lg transition">Thi ngay</a>
+                <a href="register.html" class="btn-primary font-bold px-8 py-3 rounded-lg transition" id="register-button">Đăng ký tài khoản</a>
             </div>
         </div>
     </section>
 
     <!-- Features Section -->
     <section class="py-16 bg-white">
-        <div class="max-w-6xl mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12">Tính năng nổi bật</h2>
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Tính năng nổi bật</h2>
+            <p class="text-gray-600 text-center mb-12 max-w-3xl mx-auto">Hệ thống Anti Cheat cung cấp các tính năng hiện đại giúp đảm bảo kỳ thi trực tuyến diễn ra công bằng và minh bạch</p>
             <div class="grid md:grid-cols-3 gap-8">
                 <!-- Feature 1 -->
                 <div class="card bg-gray-50 p-6 rounded-xl">
-                    <div class="text-indigo-600 mb-4">
-                        <i class="fas fa-eye text-3xl"></i>
+                    <div class="feature-icon mx-auto">
+                        <i class="fas fa-eye text-white text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Giám sát thời gian thực</h3>
-                    <p class="text-gray-600">Theo dõi và phát hiện hành vi gian lận ngay lập tức với camera và AI phân tích</p>
+                    <h3 class="text-xl font-bold mb-3 text-center">Giám sát thời gian thực</h3>
+                    <p class="text-gray-600 text-center">Theo dõi và phát hiện hành vi gian lận ngay lập tức với camera và AI phân tích hành vi thí sinh</p>
                 </div>
                 
                 <!-- Feature 2 -->
                 <div class="card bg-gray-50 p-6 rounded-xl">
-                    <div class="text-indigo-600 mb-4">
-                        <i class="fas fa-lock text-3xl"></i>
+                    <div class="feature-icon mx-auto">
+                        <i class="fas fa-lock text-white text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Chế độ thi an toàn</h3>
-                    <p class="text-gray-600">Toàn màn hình bắt buộc, cảnh báo khi thí sinh chuyển tab hoặc thoát khỏi trình duyệt</p>
+                    <h3 class="text-xl font-bold mb-3 text-center">Chế độ thi an toàn</h3>
+                    <p class="text-gray-600 text-center">Toàn màn hình bắt buộc, cảnh báo khi thí sinh chuyển tab hoặc thoát khỏi trình duyệt</p>
                 </div>
                 
                 <!-- Feature 3 -->
                 <div class="card bg-gray-50 p-6 rounded-xl">
-                    <div class="text-indigo-600 mb-4">
-                        <i class="fas fa-chart-bar text-3xl"></i>
+                    <div class="feature-icon mx-auto">
+                        <i class="fas fa-chart-bar text-white text-2xl"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">Báo cáo chi tiết</h3>
-                    <p class="text-gray-600">Thống kê và báo cáo các vi phạm của thí sinh giúp giáo viên đánh giá chính xác</p>
+                    <h3 class="text-xl font-bold mb-3 text-center">Báo cáo chi tiết</h3>
+                    <p class="text-gray-600 text-center">Thống kê và báo cáo các vi phạm của thí sinh giúp giáo viên đánh giá chính xác và khách quan</p>
                 </div>
             </div>
         </div>
@@ -127,35 +195,66 @@
 
     <!-- How It Works -->
     <section class="py-16 bg-gray-50">
-        <div class="max-w-6xl mx-auto px-4">
-            <h2 class="text-3xl font-bold text-center mb-12">Cách thức hoạt động</h2>
+        <div class="max-w-7xl mx-auto px-4">
+            <h2 class="text-3xl font-bold text-center mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Cách thức hoạt động</h2>
+            <p class="text-gray-600 text-center mb-12 max-w-3xl mx-auto">Hệ thống Anti Cheat hoạt động đơn giản nhưng hiệu quả, đảm bảo trải nghiệm thi trực tuyến tốt nhất</p>
             <div class="grid md:grid-cols-3 gap-8">
                 <!-- Step 1 -->
                 <div class="text-center">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-indigo-600 font-bold text-xl">1</span>
-                    </div>
+                    <div class="step-number">1</div>
                     <h3 class="text-xl font-bold mb-2">Tạo đề thi</h3>
-                    <p class="text-gray-600">Giáo viên tạo đề thi với nhiều dạng câu hỏi khác nhau</p>
+                    <p class="text-gray-600">Giáo viên tạo đề thi với nhiều dạng câu hỏi khác nhau và cài đặt thời gian làm bài</p>
                 </div>
                 
                 <!-- Step 2 -->
                 <div class="text-center">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-indigo-600 font-bold text-xl">2</span>
-                    </div>
+                    <div class="step-number">2</div>
                     <h3 class="text-xl font-bold mb-2">Thí sinh làm bài</h3>
-                    <p class="text-gray-600">Thí sinh làm bài trong môi trường được giám sát nghiêm ngặt</p>
+                    <p class="text-gray-600">Thí sinh làm bài trong môi trường được giám sát nghiêm ngặt với AI phát hiện gian lận</p>
                 </div>
                 
                 <!-- Step 3 -->
                 <div class="text-center">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span class="text-indigo-600 font-bold text-xl">3</span>
-                    </div>
+                    <div class="step-number">3</div>
                     <h3 class="text-xl font-bold mb-2">Báo cáo kết quả</h3>
-                    <p class="text-gray-600">Hệ thống gửi báo cáo chi tiết về bài làm và các vi phạm (nếu có)</p>
+                    <p class="text-gray-600">Hệ thống gửi báo cáo chi tiết về bài làm và các vi phạm (nếu có) cho giáo viên</p>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="py-16 bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+                <div>
+                    <div class="text-3xl md:text-4xl font-bold mb-2">100+</div>
+                    <p class="text-indigo-100">Đề thi được tạo</p>
+                </div>
+                <div>
+                    <div class="text-3xl md:text-4xl font-bold mb-2">500+</div>
+                    <p class="text-indigo-100">Thí sinh tham gia</p>
+                </div>
+                <div>
+                    <div class="text-3xl md:text-4xl font-bold mb-2">99%</div>
+                    <p class="text-indigo-100">Độ chính xác</p>
+                </div>
+                <div>
+                    <div class="text-3xl md:text-4xl font-bold mb-2">24/7</div>
+                    <p class="text-indigo-100">Hỗ trợ kỹ thuật</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="py-16 bg-white">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <h2 class="text-3xl font-bold mb-6">Sẵn sàng trải nghiệm hệ thống thi trực tuyến an toàn?</h2>
+            <p class="text-gray-600 mb-8 max-w-3xl mx-auto">Đăng ký ngay để tạo và quản lý các kỳ thi trực tuyến với công nghệ giám sát AI tiên tiến</p>
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="exam.html" class="btn-secondary font-bold px-8 py-3 rounded-lg transition">Bắt đầu thi ngay</a>
+                <a href="register.html" class="btn-primary font-bold px-8 py-3 rounded-lg transition">Đăng ký tài khoản</a>
             </div>
         </div>
     </section>
@@ -201,11 +300,13 @@
             document.getElementById('login-link').classList.add('hidden');
             document.getElementById('register-link').classList.add('hidden');
             document.getElementById('logout-link').classList.remove('hidden');
+            document.getElementById('exam-management-link').classList.remove('hidden');
             
             // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
             document.getElementById('mobile-login-link').classList.add('hidden');
             document.getElementById('mobile-register-link').classList.add('hidden');
             document.getElementById('mobile-logout-link').classList.remove('hidden');
+            document.getElementById('mobile-exam-management-link').classList.remove('hidden');
             
             // Ẩn nút đăng ký trong hero section
             document.getElementById('register-button').classList.add('hidden');
@@ -221,11 +322,13 @@
             document.getElementById('login-link').classList.remove('hidden');
             document.getElementById('register-link').classList.remove('hidden');
             document.getElementById('logout-link').classList.add('hidden');
+            document.getElementById('exam-management-link').classList.add('hidden');
             
             // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên mobile
             document.getElementById('mobile-login-link').classList.remove('hidden');
             document.getElementById('mobile-register-link').classList.remove('hidden');
             document.getElementById('mobile-logout-link').classList.add('hidden');
+            document.getElementById('mobile-exam-management-link').classList.add('hidden');
             
             // Hiện nút đăng ký trong hero section
             document.getElementById('register-button').classList.remove('hidden');
