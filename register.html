@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Đăng ký</title>
+    <title>ANTI CHEAT - Đăng ký</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -12,8 +11,92 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
         body {
-            background-color: #f8fafc;
-            font-family: 'Arial', serif;
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            font-family: 'Arial', sans-serif;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,128L48,117.3C96,107,192,85,288,112C384,139,480,213,576,218.7C672,224,768,160,864,138.7C960,117,1056,139,1152,149.3C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        .active-menu-item {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
+        }
+        .mobile-menu {
+            transition: all 0.3s ease;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .mobile-menu.open {
+            max-height: 500px;
+        }
+        .feature-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         .auth-card {
             background-color: white;
@@ -21,63 +104,123 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
             max-width: 400px;
         }
-        .btn-primary {
-            background-color: #4f46e5;
-            color: white;
-            padding: 0.75rem 1.5rem;
+        .form-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
             border-radius: 8px;
-            font-weight: 600;
             transition: all 0.3s ease;
         }
-        .btn-primary:hover {
-            background-color: #4338ca;
+        .form-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
-    <div class="auth-card p-8 w-full">
-        <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold text-gray-800">Đăng ký tài khoản</h1>
-            <p class="text-gray-600 mt-2">Tạo tài khoản để lưu kết quả thi</p>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="home.html" class="flex items-center space-x-2">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt text-white text-xl"></i>
+                        </div>
+                        <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">ANTI CHEAT</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
+                    <!-- Menu sẽ được cập nhật động bằng JavaScript -->
+                    <a href="home.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-4 py-2 active-menu-item" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
+                </div>
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-button" class="p-2 focus:outline-none">
+                        <i class="fas fa-bars text-gray-600 text-xl"></i>
+                    </button>
+                </div>
+            </div>
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
+                <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
+                    <!-- Menu mobile sẽ được cập nhật động bằng JavaScript -->
+                    <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-login-link">Đăng nhập</a>
+                    <a href="register.html" class="block px-3 py-2 active-menu-item" id="mobile-register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-logout-link">Đăng xuất</a>
+                </div>
+            </div>
         </div>
-        
-        <form id="register-form" class="space-y-4">
-            <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
-                <input type="text" id="name" required 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+    </nav>
+
+    <!-- Main Content -->
+    <section class="py-16">
+        <div class="max-w-7xl mx-auto px-4 flex justify-center">
+            <div class="auth-card p-8 w-full max-w-md">
+                <div class="text-center mb-8">
+                    <h1 class="text-2xl font-bold text-gray-800">Đăng ký tài khoản</h1>
+                    <p class="text-gray-600 mt-2">Tạo tài khoản để lưu kết quả thi</p>
+                </div>
+                
+                <form id="register-form" class="space-y-4">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+                        <input type="text" id="name" required class="form-input">
+                    </div>
+                    
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="email" required class="form-input">
+                    </div>
+                    
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
+                        <input type="password" id="password" required minlength="6" class="form-input">
+                    </div>
+                    
+                    <div>
+                        <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu</label>
+                        <input type="password" id="confirm-password" required minlength="6" class="form-input">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary w-full py-3 font-bold rounded-lg">
+                        Đăng ký
+                    </button>
+                    
+                    <div class="text-center text-sm text-gray-600">
+                        Đã có tài khoản? <a href="login.html" class="text-indigo-600 hover:underline font-medium">Đăng nhập ngay</a>
+                    </div>
+                </form>
+                
+                <div id="error-message" class="mt-4 text-red-600 text-sm hidden"></div>
+                <div id="success-message" class="mt-4 text-green-600 text-sm hidden"></div>
             </div>
-            
-            <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email" required 
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer class="bg-white py-8 border-t border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <div class="flex justify-center items-center mb-4">
+                <div class="feature-icon">
+                    <i class="fas fa-shield-alt text-white text-xl"></i>
+                </div>
+                <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent ml-2">ANTI CHEAT</span>
             </div>
-            
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Mật khẩu</label>
-                <input type="password" id="password" required minlength="6"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            
-            <div>
-                <label for="confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Nhập lại mật khẩu</label>
-                <input type="password" id="confirm-password" required minlength="6"
-                       class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-            </div>
-            
-            <button type="submit" class="btn-primary w-full py-2">
-                Đăng ký
-            </button>
-            
-            <div class="text-center text-sm text-gray-600">
-                Đã có tài khoản? <a href="login.html" class="text-blue-600 hover:underline">Đăng nhập ngay</a>
-            </div>
-        </form>
-        
-        <div id="error-message" class="mt-4 text-red-600 text-sm hidden"></div>
-        <div id="success-message" class="mt-4 text-green-600 text-sm hidden"></div>
-    </div>
+            <p class="text-gray-600 mb-4">Giải pháp chống gian lận thi cử thông minh với công nghệ AI</p>
+            <p class="text-gray-500 text-sm">© 2023 ANTI CHEAT. Tất cả các quyền được bảo lưu.</p>
+        </div>
+    </footer>
 
     <script>
         const firebaseConfig = {
@@ -90,11 +233,19 @@
             measurementId: "G-4EDKFS0CY6"
         };
 
-
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
+        });
+
+        // Xử lý form đăng ký
         document.getElementById('register-form').addEventListener('submit', (e) => {
             e.preventDefault();
             
@@ -137,11 +288,64 @@
                 });
         });
 
+        // Theo dõi trạng thái đăng nhập
         auth.onAuthStateChanged((user) => {
             if (user) {
-                window.location.href = 'home.html';
+                // Người dùng đã đăng nhập
+                updateMenuForLoggedInUser();
+            } else {
+                // Người dùng chưa đăng nhập
+                updateMenuForLoggedOutUser();
             }
         });
+
+        // Cập nhật menu khi đã đăng nhập
+        function updateMenuForLoggedInUser() {
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên desktop
+            document.getElementById('login-link').classList.add('hidden');
+            document.getElementById('register-link').classList.add('hidden');
+            document.getElementById('logout-link').classList.remove('hidden');
+            document.getElementById('exam-management-link').classList.remove('hidden');
+            
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.add('hidden');
+            document.getElementById('mobile-register-link').classList.add('hidden');
+            document.getElementById('mobile-logout-link').classList.remove('hidden');
+            document.getElementById('mobile-exam-management-link').classList.remove('hidden');
+            
+            // Thêm sự kiện đăng xuất
+            document.getElementById('logout-link').addEventListener('click', signOut);
+            document.getElementById('mobile-logout-link').addEventListener('click', signOut);
+            
+            // Nếu đã đăng nhập, chuyển hướng về trang chủ
+            window.location.href = 'home.html';
+        }
+
+        // Cập nhật menu khi chưa đăng nhập
+        function updateMenuForLoggedOutUser() {
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên desktop
+            document.getElementById('login-link').classList.remove('hidden');
+            document.getElementById('register-link').classList.remove('hidden');
+            document.getElementById('logout-link').classList.add('hidden');
+            document.getElementById('exam-management-link').classList.add('hidden');
+            
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.remove('hidden');
+            document.getElementById('mobile-register-link').classList.remove('hidden');
+            document.getElementById('mobile-logout-link').classList.add('hidden');
+            document.getElementById('mobile-exam-management-link').classList.add('hidden');
+        }
+
+        // Hàm đăng xuất
+        function signOut(e) {
+            e.preventDefault();
+            auth.signOut().then(() => {
+                // Đăng xuất thành công
+                window.location.href = 'home.html';
+            }).catch((error) => {
+                console.error('Lỗi khi đăng xuất:', error);
+            });
+        }
     </script>
 </body>
 </html>
