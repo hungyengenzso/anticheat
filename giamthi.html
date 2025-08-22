@@ -1,23 +1,102 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giám sát màn hình chia sẻ - Anti Cheat</title>
-    <script src="https://cdn.tailwindcss.com/3.4.0"></script>
+    <title>Giám thị AI - Anti Cheat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Thêm Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <style>
         body {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             font-family: 'Arial', sans-serif;
-            background-color: #f3f4f6;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,128L48,117.3C96,107,192,85,288,112C384,139,480,213,576,218.7C672,224,768,160,864,138.7C960,117,1056,139,1152,149.3C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
         }
         .card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
         }
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        .active-menu-item {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
+        }
+        .mobile-menu {
+            transition: all 0.3s ease;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .mobile-menu.open {
+            max-height: 500px;
+        }
+        .feature-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         #screen-preview {
             width: 100%;
@@ -148,78 +227,132 @@
     </style>
 </head>
 <body class="bg-gray-100">
-    <div class="max-w-4xl mx-auto px-4 py-8">
-        <div class="bg-white shadow rounded-lg p-6 mb-8">
-            <h1 class="text-2xl font-bold mb-4 text-center">Giám sát màn hình chia sẻ</h1>
-            <p class="text-gray-600 mb-6 text-center">
-                Hệ thống chỉ phát hiện các thiết bị điện tử và hành vi bất thường, không tính máy tính đang dùng để thi.
-            </p>
-            
-            <div class="instructions">
-                <div class="flex">
-                    <div class="flex-shrink-0">
-                        <i class="fas fa-info-circle text-blue-400 text-xl mt-1"></i>
-                    </div>
-                    <div class="ml-3">
-                        <p class="text-sm text-blue-700">
-                            <strong>Hướng dẫn:</strong> Hệ thống sẽ chỉ phát hiện vi phạm khi thấy:
-                        </p>
-                        <ul class="list-disc list-inside text-sm text-blue-700 mt-2">
-                            <li>Điện thoại di động hoặc máy tính bảng</li>
-                            <li>Hành vi đáng ngờ (trao đổi với người khác, sử dụng tài liệu không được phép)</li>
-                        </ul>
-                        <p class="text-sm text-blue-700 mt-2">
-                            <strong class="font-bold">Máy tính đang dùng để thi sẽ không bị tính là vi phạm.</strong>
-                        </p>
-                    </div>
+    <!-- Navigation -->
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="home.html" class="flex items-center space-x-2">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt text-white text-xl"></i>
+                        </div>
+                        <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">ANTI CHEAT</span>
+                    </a>
                 </div>
-            </div>
-            
-            <div class="flex flex-col items-center">
-                <button id="start-screen-share-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition mb-4">
-                    <i class="fas fa-desktop mr-2"></i>Bắt đầu giám sát màn hình
-                </button>
-                
-                <button id="stop-screen-share-btn" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition hidden">
-                    <i class="fas fa-stop mr-2"></i>Dừng giám sát
-                </button>
-            </div>
-            
-            <div id="screen-container" class="hidden">
-                <video id="screen-preview" autoplay muted playsinline></video>
-                <div id="frame-indicator" class="frame-indicator hidden">Frame: <span id="frame-number">0</span></div>
-            </div>
-            
-            <div id="status-container" class="bg-gray-50 p-4 rounded-lg mb-6 hidden">
-                <h2 class="text-lg font-semibold mb-2">Trạng thái giám sát</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <p><span class="font-medium">Trạng thái:</span> <span id="monitoring-status">Chưa kích hoạt</span></p>
-                        <p><span class="font-medium">Lần quét cuối:</span> <span id="last-scan-time">Chưa có</span></p>
-                    </div>
-                    <div>
-                        <p><span class="font-medium">Số vi phạm phát hiện:</span> <span id="violation-count">0</span></p>
-                        <p><span class="font-medium">Kết quả phân tích cuối:</span> <span id="last-analysis-result">Chưa có</span></p>
-                    </div>
+                <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
+                    <!-- Menu sẽ được cập nhật động bằng JavaScript -->
+                    <a href="home.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="px-4 py-2 active-menu-item">Giám thị AI</a>
+                    <a href="exam.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
                 </div>
-                <div id="debug-info" class="debug-info mt-2 hidden">
-                    <!-- Debug information will be shown here -->
-                </div>
-            </div>
-            
-            <div id="violations-container" class="hidden">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-lg font-semibold">Ảnh chụp vi phạm</h2>
-                    <button id="clear-violations-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition clear-violations-btn">
-                        <i class="fas fa-trash mr-2"></i>Xóa tất cả vi phạm
+                <div class="md:hidden flex items-center">
+                    <button id="mobile-menu-button" class="p-2 focus:outline-none">
+                        <i class="fas fa-bars text-gray-600 text-xl"></i>
                     </button>
                 </div>
-                <div id="violation-screenshots" class="grid grid-cols-1 gap-4">
-                    <!-- Screenshots of violations will be added here -->
+            </div>
+            <!-- Mobile menu -->
+            <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
+                <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
+                    <!-- Menu mobile sẽ được cập nhật động bằng JavaScript -->
+                    <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="block px-3 py-2 active-menu-item">Giám thị AI</a>
+                    <a href="exam.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-login-link">Đăng nhập</a>
+                    <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-logout-link">Đăng xuất</a>
                 </div>
             </div>
         </div>
-    </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section text-white py-12 relative">
+        <div class="max-w-7xl mx-auto px-4 text-center relative z-10">
+            <h1 class="text-3xl md:text-4xl font-bold mb-4">Giám thị AI - Giám sát màn hình chia sẻ</h1>
+            <p class="text-lg md:text-xl mb-6 max-w-3xl mx-auto">Hệ thống giám sát thi trực tuyến với công nghệ AI phát hiện gian lận hiệu quả, bảo vệ sự công bằng trong giáo dục</p>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <section class="py-8">
+        <div class="max-w-4xl mx-auto px-4">
+            <div class="card bg-white p-6 rounded-xl">
+                <p class="text-gray-600 mb-6 text-center">
+                    Hệ thống chỉ phát hiện các thiết bị điện tử và hành vi bất thường, không tính máy tính đang dùng để thi.
+                </p>
+                
+                <div class="instructions">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-info-circle text-blue-400 text-xl mt-1"></i>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-blue-700">
+                                <strong>Hướng dẫn:</strong> Hệ thống sẽ chỉ phát hiện vi phạm khi thấy:
+                            </p>
+                            <ul class="list-disc list-inside text-sm text-blue-700 mt-2">
+                                <li>Điện thoại di động hoặc máy tính bảng</li>
+                                <li>Hành vi đáng ngờ (trao đổi với người khác, sử dụng tài liệu không được phép)</li>
+                            </ul>
+                            <p class="text-sm text-blue-700 mt-2">
+                                <strong class="font-bold">Máy tính đang dùng để thi sẽ không bị tính là vi phạm.</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-col items-center">
+                    <button id="start-screen-share-btn" class="btn-primary font-bold px-8 py-3 rounded-lg transition mb-4">
+                        <i class="fas fa-desktop mr-2"></i>Bắt đầu giám sát màn hình
+                    </button>
+                    
+                    <button id="stop-screen-share-btn" class="bg-red-600 text-white px-8 py-3 rounded-lg hover:bg-red-700 transition hidden font-bold">
+                        <i class="fas fa-stop mr-2"></i>Dừng giám sát
+                    </button>
+                </div>
+                
+                <div id="screen-container" class="hidden">
+                    <video id="screen-preview" autoplay muted playsinline></video>
+                    <div id="frame-indicator" class="frame-indicator hidden">Frame: <span id="frame-number">0</span></div>
+                </div>
+                
+                <div id="status-container" class="bg-gray-50 p-4 rounded-lg mb-6 hidden">
+                    <h2 class="text-lg font-semibold mb-2">Trạng thái giám sát</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <p><span class="font-medium">Trạng thái:</span> <span id="monitoring-status">Chưa kích hoạt</span></p>
+                            <p><span class="font-medium">Lần quét cuối:</span> <span id="last-scan-time">Chưa có</span></p>
+                        </div>
+                        <div>
+                            <p><span class="font-medium">Số vi phạm phát hiện:</span> <span id="violation-count">0</span></p>
+                            <p><span class="font-medium">Kết quả phân tích cuối:</span> <span id="last-analysis-result">Chưa có</span></p>
+                        </div>
+                    </div>
+                    <div id="debug-info" class="debug-info mt-2 hidden">
+                        <!-- Debug information will be shown here -->
+                    </div>
+                </div>
+                
+                <div id="violations-container" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Ảnh chụp vi phạm</h2>
+                        <button id="clear-violations-btn" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition clear-violations-btn">
+                            <i class="fas fa-trash mr-2"></i>Xóa tất cả vi phạm
+                        </button>
+                    </div>
+                    <div id="violation-screenshots" class="grid grid-cols-1 gap-4">
+                        <!-- Screenshots of violations will be added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <!-- API Status -->
     <div id="api-status" class="api-status">
@@ -232,6 +365,89 @@
         <p id="loading-message">Đang xử lý...</p>
     </div>
 
+    <!-- Firebase Configuration and Authentication Script -->
+    <script>
+        // Cấu hình Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBHAxN6WCc2_8aB9t3NuWroespDR7Ry4QQ",
+            authDomain: "anticheat-749d6.firebaseapp.com",
+            projectId: "anticheat-749d6",
+            storageBucket: "anticheat-749d6.appspot.com",
+            messagingSenderId: "417797975285",
+            appId: "1:417797975285:web:71eadf4331ddb65968e9bc",
+            measurementId: "G-4EDKFS0CY6"
+        };
+
+        // Khởi tạo Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuButton.addEventListener('click', () => {
+            mobileMenu.classList.toggle('open');
+        });
+
+        // Theo dõi trạng thái đăng nhập
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                // Người dùng đã đăng nhập
+                updateMenuForLoggedInUser();
+            } else {
+                // Người dùng chưa đăng nhập
+                updateMenuForLoggedOutUser();
+            }
+        });
+
+        // Cập nhật menu khi đã đăng nhập
+        function updateMenuForLoggedInUser() {
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên desktop
+            document.getElementById('login-link').classList.add('hidden');
+            document.getElementById('register-link').classList.add('hidden');
+            document.getElementById('logout-link').classList.remove('hidden');
+            document.getElementById('exam-management-link').classList.remove('hidden');
+            
+            // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.add('hidden');
+            document.getElementById('mobile-register-link').classList.add('hidden');
+            document.getElementById('mobile-logout-link').classList.remove('hidden');
+            document.getElementById('mobile-exam-management-link').classList.remove('hidden');
+            
+            // Thêm sự kiện đăng xuất
+            document.getElementById('logout-link').addEventListener('click', signOut);
+            document.getElementById('mobile-logout-link').addEventListener('click', signOut);
+        }
+
+        // Cập nhật menu khi chưa đăng nhập
+        function updateMenuForLoggedOutUser() {
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên desktop
+            document.getElementById('login-link').classList.remove('hidden');
+            document.getElementById('register-link').classList.remove('hidden');
+            document.getElementById('logout-link').classList.add('hidden');
+            document.getElementById('exam-management-link').classList.add('hidden');
+            
+            // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên mobile
+            document.getElementById('mobile-login-link').classList.remove('hidden');
+            document.getElementById('mobile-register-link').classList.remove('hidden');
+            document.getElementById('mobile-logout-link').classList.add('hidden');
+            document.getElementById('mobile-exam-management-link').classList.add('hidden');
+        }
+
+        // Hàm đăng xuất
+        function signOut(e) {
+            e.preventDefault();
+            auth.signOut().then(() => {
+                // Đăng xuất thành công
+                window.location.href = 'home.html';
+            }).catch((error) => {
+                console.error('Lỗi khi đăng xuất:', error);
+            });
+        }
+    </script>
+
+    <!-- Screen Monitoring Script -->
     <script>
         // DOM elements
         const startScreenShareBtn = document.getElementById('start-screen-share-btn');
