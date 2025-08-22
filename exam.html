@@ -12,8 +12,92 @@
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
         body {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             font-family: 'Arial', sans-serif;
-            background-color: #f3f4f6;
+        }
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,128L48,117.3C96,107,192,85,288,112C384,139,480,213,576,218.7C672,224,768,160,864,138.7C960,117,1056,139,1152,149.3C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
+        }
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        .active-menu-item {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
+        }
+        .mobile-menu {
+            transition: all 0.3s ease;
+            max-height: 0;
+            overflow: hidden;
+        }
+        .mobile-menu.open {
+            max-height: 500px;
+        }
+        .feature-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
         #video-container {
             position: fixed;
@@ -117,29 +201,6 @@
             align-items: center;
             margin-top: 75px;
         }
-        .active-menu-item {
-            background-color: #7c3aed;
-            color: white;
-            border-radius: 8px;
-        }
-        .mobile-menu {
-            transition: all 0.3s ease;
-            max-height: 0;
-            overflow: hidden;
-        }
-        .mobile-menu.open {
-            max-height: 500px;
-        }
-        .hero-section {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        }
-        .card {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
         #photo-container {
             margin: 20px auto;
             width: 300px;
@@ -157,7 +218,7 @@
         }
         #capture-btn {
             margin-top: 10px;
-            background-color: #4f46e5;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
             padding: 8px 16px;
             border-radius: 4px;
@@ -252,23 +313,27 @@
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-4">
                     <a href="home.html" class="flex items-center space-x-2">
-                        <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
-                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt text-white text-xl"></i>
+                        </div>
+                        <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">ANTI CHEAT</span>
                     </a>
                 </div>
                 <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
-                    <a href="home.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
-                    <a href="login.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="login-link">Đăng nhập</a>
-                    <a href="register.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
-                    <a href="#" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="logout-link">Đăng xuất</a>
+                    <a href="home.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="px-4 py-2 active-menu-item">Thi trực tuyến</a>
+                    <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="login-link">Đăng nhập</a>
+                    <a href="register.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="register-link">Đăng ký</a>
+                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
                     <button id="mobile-menu-button" class="p-2 focus:outline-none">
@@ -280,6 +345,8 @@
             <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
                 <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
                     <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="giamthi.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
+                    <a href="exam.html" class="block px-3 py-2 active-menu-item">Thi trực tuyến</a>
                     <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-login-link">Đăng nhập</a>
                     <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-register-link">Đăng ký</a>
                     <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-exam-management-link">Quản lý đề thi</a>
@@ -319,7 +386,7 @@
     <div id="fullscreen-warning" class="fullscreen-warning hidden">
         <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
         <p class="text-center mb-6">Vui lòng vào chế độ toàn màn hình để tiếp tục làm bài</p>
-        <button id="enter-fullscreen-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+        <button id="enter-fullscreen-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
             <i class="fas fa-expand mr-2"></i>Vào chế độ toàn màn hình
         </button>
     </div>
@@ -329,7 +396,7 @@
         <i class="fas fa-desktop text-green-500 text-5xl mb-4"></i>
         <h2 class="text-2xl font-bold mb-2">Yêu cầu chia sẻ màn hình</h2>
         <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần chia sẻ toàn bộ màn hình trong suốt quá trình làm bài. Hệ thống sẽ giám sát để phát hiện các hành vi truy cập tài liệu hoặc công cụ tìm kiếm trái phép.</p>
-        <button id="start-screenshare-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition">
+        <button id="start-screenshare-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
             <i class="fas fa-desktop mr-2"></i>Chia sẻ màn hình
         </button>
     </div>
@@ -338,8 +405,8 @@
     <div id="camera-warning" class="camera-warning">
         <i class="fas fa-video text-indigo-500 text-5xl mb-4"></i>
         <h2 class="text-2xl font-bold mb-2">Yêu cầu truy cập camera & microphone</h2>
-        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera và microphone trong suốt quá trình làm bài. Hệ thống sẽ phát hiện các hành vi gian lận.</p>
-        <button id="start-camera-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera và microphone trong suốt quá trình làm bài. Hệ thống sẽ phát hiện các hàvi vi gian lận.</p>
+        <button id="start-camera-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
             <i class="fas fa-camera mr-2"></i>Bắt đầu kiểm tra
         </button>
     </div>
@@ -347,20 +414,20 @@
     <!-- Photo Capture Section -->
     <div id="photo-section" class="hidden">
         <div class="max-w-4xl mx-auto px-4 py-8">
-            <div class="bg-white shadow rounded-lg p-6 mb-8 text-center">
-                <h1 class="text-2xl font-bold mb-4">Xác thực thí sinh</h1>
-                <p class="mb-4">Vui lòng chụp ảnh chân dung để xác minh danh tính trước khi bắt đầu làm bài</p>
+            <div class="card bg-gray-50 p-6 rounded-xl text-center">
+                <h1 class="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Xác thực thí sinh</h1>
+                <p class="mb-4 text-gray-600">Vui lòng chụp ảnh chân dung để xác minh danh tính trước khi bắt đầu làm bài</p>
                 
                 <div id="photo-container">
                     <video id="photo-preview" autoplay muted playsinline></video>
                     <canvas id="canvas"></canvas>
                 </div>
                 
-                <button id="capture-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                <button id="capture-btn" class="btn-primary font-bold px-4 py-2 rounded-md transition mt-4">
                     <i class="fas fa-camera mr-2"></i>Chụp ảnh
                 </button>
                 
-                <button id="confirm-photo-btn" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition mt-4 hidden">
+                <button id="confirm-photo-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition mt-4 hidden">
                     <i class="fas fa-check mr-2"></i>Xác nhận ảnh
                 </button>
             </div>
@@ -370,12 +437,12 @@
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- Exam Code Input -->
-        <div id="exam-code-section" class="bg-white shadow rounded-lg p-6 mb-8 text-center">
-            <h1 class="text-2xl font-bold mb-4">Nhập mã dự thi</h1>
+        <div id="exam-code-section" class="card bg-gray-50 p-6 rounded-xl text-center">
+            <h1 class="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nhập mã dự thi</h1>
             <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
                 <input type="text" id="exam-code-input" placeholder="Nhập mã dự thi" class="px-4 py-2 border border-gray-300 rounded-md w-full md:w-64">
                 <span class="text-gray-500">hoặc</span>
-                <button id="scan-qr-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition">
+                <button id="scan-qr-btn" class="btn-primary font-bold px-4 py-2 rounded-md transition">
                     <i class="fas fa-qrcode mr-2"></i>Quét mã QR
                 </button>
             </div>
@@ -383,19 +450,19 @@
                 <div class="flex justify-center">
                     <video id="qr-video" width="300" height="200" class="border border-gray-300 rounded-md"></video>
                 </div>
-                <button id="stop-scan-btn" class="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition">
+                <button id="stop-scan-btn" class="mt-2 btn-secondary font-bold px-4 py-2 rounded-md transition">
                     <i class="fas fa-stop mr-2"></i>Dừng quét
                 </button>
             </div>
-            <button id="start-exam-btn" class="mt-6 bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition hidden">
+            <button id="start-exam-btn" class="mt-6 btn-primary font-bold px-6 py-3 rounded-lg transition hidden">
                 <i class="fas fa-play mr-2"></i>Bắt đầu làm bài
-                </button>
+            </button>
         </div>
 
         <!-- Exam Info -->
-        <div id="exam-info-section" class="bg-white shadow rounded-lg p-6 mb-8 hidden">
+        <div id="exam-info-section" class="card bg-gray-50 p-6 rounded-xl hidden">
             <div class="flex justify-between items-center mb-4">
-                <h1 id="exam-name" class="text-2xl font-bold"></h1>
+                <h1 id="exam-name" class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"></h1>
                 <div class="timer bg-gray-100 px-4 py-2 rounded-lg" id="exam-timer">00:00:00</div>
             </div>
             <div class="grid grid-cols-2 gap-4 mb-4">
@@ -427,8 +494,8 @@
                     <!-- Questions will be loaded here -->
                 </div>
                 
-                <div class="mt-8 bg-white shadow rounded-lg p-6">
-                    <button type="submit" id="submit-exam-btn" class="w-full bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+                <div class="mt-8 card bg-gray-50 p-6 rounded-xl">
+                    <button type="submit" id="submit-exam-btn" class="w-full btn-primary font-bold px-6 py-3 rounded-lg transition">
                         <i class="fas fa-paper-plane mr-2"></i>Nộp bài
                     </button>
                 </div>
@@ -436,11 +503,11 @@
         </div>
 
         <!-- Exam Completed -->
-        <div id="exam-completed-section" class="bg-white shadow rounded-lg p-6 text-center hidden">
+        <div id="exam-completed-section" class="card bg-gray-50 p-6 rounded-xl text-center hidden">
             <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
-            <h2 class="text-2xl font-bold mb-2">Hoàn thành bài thi</h2>
+            <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Hoàn thành bài thi</h2>
             <p class="text-gray-600 mb-6">Bạn đã hoàn thành bài thi. Kết quả sẽ được thông báo sau khi giáo viên chấm điểm.</p>
-            <button id="exit-exam-btn" class="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition">
+            <button id="exit-exam-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
                 <i class="fas fa-sign-out-alt mr-2"></i>Thoát
             </button>
         </div>
@@ -659,10 +726,12 @@
             loginLink.classList.add('hidden');
             registerLink.classList.add('hidden');
             logoutLink.classList.remove('hidden');
+            examManagementLink.classList.remove('hidden');
             
             mobileLoginLink.classList.add('hidden');
             mobileRegisterLink.classList.add('hidden');
             mobileLogoutLink.classList.remove('hidden');
+            mobileExamManagementLink.classList.remove('hidden');
         }
 
         // Hàm đăng xuất
@@ -969,7 +1038,7 @@
                 const data = await response.json();
                 
                 if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    const responseText = data.candidates[0].content.parts[0].text;
+                    const responseText = data.candidates[0].content.parts[0.text;
                     try {
                         const jsonStart = responseText.indexOf('{');
                         const jsonEnd = responseText.lastIndexOf('}') + 1;
@@ -1465,7 +1534,7 @@
             
             currentExam.questions.forEach((question, index) => {
                 const questionEl = document.createElement('div');
-                questionEl.className = 'question-block bg-white shadow rounded-lg p-6';
+                questionEl.className = 'question-block card bg-gray-50 p-6 rounded-xl';
                 
                 if (question.type === 'mcq') {
                     questionEl.innerHTML = `
