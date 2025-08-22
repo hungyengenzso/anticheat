@@ -673,13 +673,14 @@
             
             const prompt = `Bạn là hệ thống giám sát thi trực tuyến. Phân tích hình ảnh màn hình máy tính và trả lời theo định dạng JSON chính xác:
                 {
-                    "electronic_devices": [danh sách thiết bị điện tử phát hiện được (chỉ liệt kê điện thoại, máy tính bảng, thiết bị không dây, các vật như mic, máy tính (cái để tính toán ấy))],
-                    "suspicious_activity": mô tả hoạt động đáng ngờ nếu có (ví dụ: đang sử dụng điện thoại, trao đổi với người khác, sử dụng tài liệu không được phép),
+                    "electronic_devices": [danh sách thiết bị điện tử phát hiện được (chỉ liệt kê điện thoại, máy tính bảng, thiết bị không dây, các vật như mic, máy tính (cái để tính toán ấy)) (LƯU Ý NẾU DÙNG MÁY TÍNH THÌ LÀ BÌNH THƯỜNG, CHIA SẼ MÀN HÌNH CŨNG BÌNH THƯỜNG)],
+                    "suspicious_activity": mô tả hoạt động đáng ngờ nếu có (ví dụ: đang sử dụng điện thoại, trao đổi với người khác, sử dụng tài liệu không được phép) (LƯU Ý NẾU DÙNG MÁY TÍNH THÌ LÀ BÌNH THƯỜNG, CHIA SẼ MÀN HÌNH CŨNG BÌNH THƯỜNG),
                     "confidence": mức độ chắc chắn từ 0-100
                 }
                 QUAN TRỌNG: 
                 - Vì tôi sẽ gửi ảch chụp màn hình cho bạn nên không tránh khỏi sẽ có các kiểu giao diện của máy tính và giao diện chia sẽ màn hình thì cái đó không được tính là vi phạm
                 - CHIA SẼ MÀN HÌNH VÀ THEO DÕI CAMERA KHÔNG ĐƯỢC TÍNH LÀ VI PHẠM
+                - LƯU Ý NẾU DÙNG MÁY TÍNH THÌ LÀ BÌNH THƯỜNG, CHIA SẼ MÀN HÌNH CŨNG BÌNH THƯỜNG
                 - Dùng máy tính,laptop không được xem là vi phạm vì đây là thiết bị dự thi online
                 - Nếu không có vi phạm, để trống mảng electronic_devices và suspicious_activity.
                 - Chỉ trả lời bằng JSON.`;
