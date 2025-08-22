@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -14,28 +13,39 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
     <style>
         body {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
             font-family: 'Arial', sans-serif;
-            background-color: #f3f4f6;
         }
-        .active-menu-item {
-            background-color: #7c3aed;
-            color: white;
-            border-radius: 8px;
+        .hero-section {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .hero-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 320'%3E%3Cpath fill='%23ffffff' fill-opacity='0.1' d='M0,128L48,117.3C96,107,192,85,288,112C384,139,480,213,576,218.7C672,224,768,160,864,138.7C960,117,1056,139,1152,149.3C1248,160,1344,160,1392,160L1440,160L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z'%3E%3C/path%3E%3C/svg%3E");
+            background-size: cover;
+            background-position: bottom;
         }
         .card {
             transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
         }
         .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
         }
-        .correct-answer {
-            background-color: #dcfce7;
-            border-left: 4px solid #22c55e;
-        }
-        .incorrect-answer {
-            background-color: #fee2e2;
-            border-left: 4px solid #ef4444;
+        .active-menu-item {
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(124, 58, 237, 0.2);
         }
         .mobile-menu {
             transition: all 0.3s ease;
@@ -44,6 +54,59 @@
         }
         .mobile-menu.open {
             max-height: 500px;
+        }
+        .feature-icon {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+        .step-number {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            color: white;
+        }
+        .nav-gradient {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(79, 70, 229, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            color: #4f46e5;
+            transition: all 0.3s ease;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .correct-answer {
+            background-color: #dcfce7;
+            border-left: 4px solid #22c55e;
+        }
+        .incorrect-answer {
+            background-color: #fee2e2;
+            border-left: 4px solid #ef4444;
         }
         .pending-result {
             background-color: #fef9c3;
@@ -102,24 +165,30 @@
         .export-btn:hover {
             background-color: #059669;
         }
+        .tab-btn.active {
+            border-bottom-color: #7c3aed;
+            color: #7c3aed;
+        }
     </style>
 </head>
 <body>
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
+    <nav class="nav-gradient shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
                 <div class="flex items-center space-x-4">
                     <a href="home.html" class="flex items-center space-x-2">
-                        <i class="fas fa-shield-alt text-indigo-600 text-2xl"></i>
-                        <span class="font-bold text-xl">ANTI CHEAT</span>
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt text-white text-xl"></i>
+                        </div>
+                        <span class="font-bold text-xl bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">ANTI CHEAT</span>
                     </a>
                 </div>
-                <div class="hidden md:flex items-center space-x-1">
-                    <a href="home.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
-                    <a href="management.html" class="px-3 py-2 active-menu-item">Quản lý</a>
-                    <a href="exam.html" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
-                    <button id="logout-btn" class="px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng xuất</button>
+                <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
+                    <a href="home.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
+                    <a href="management.html" class="px-4 py-2 active-menu-item">Quản lý</a>
+                    <a href="exam.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
+                    <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
                     <button id="mobile-menu-button" class="p-2 focus:outline-none">
@@ -133,7 +202,7 @@
                     <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
                     <a href="management.html" class="block px-3 py-2 active-menu-item">Quản lý</a>
                     <a href="exam.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
-                    <button id="logout-btn-mobile" class="block w-full text-left px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Đăng xuất</button>
+                    <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-logout-link">Đăng xuất</a>
                 </div>
             </div>
         </div>
@@ -143,11 +212,11 @@
     <div class="max-w-7xl mx-auto px-4 py-8">
         <!-- Quick Stats -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white rounded-lg shadow p-6 card">
+            <div class="bg-white rounded-lg shadow-lg p-6 card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Tổng đề thi</p>
-                        <p id="total-exams" class="text-2xl font-bold">--</p>
+                        <p id="total-exams" class="text-2xl font-bold text-indigo-600">--</p>
                     </div>
                     <div class="bg-indigo-100 p-3 rounded-full">
                         <i class="fas fa-clipboard-list text-indigo-600 text-xl"></i>
@@ -155,11 +224,11 @@
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6 card">
+            <div class="bg-white rounded-lg shadow-lg p-6 card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Bài thi chờ chấm</p>
-                        <p id="pending-exams" class="text-2xl font-bold">--</p>
+                        <p id="pending-exams" class="text-2xl font-bold text-yellow-600">--</p>
                     </div>
                     <div class="bg-yellow-100 p-3 rounded-full">
                         <i class="fas fa-clock text-yellow-600 text-xl"></i>
@@ -167,11 +236,11 @@
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-6 card">
+            <div class="bg-white rounded-lg shadow-lg p-6 card">
                 <div class="flex items-center justify-between">
                     <div>
                         <p class="text-sm text-gray-500">Vi phạm gần đây</p>
-                        <p id="recent-violations" class="text-2xl font-bold">--</p>
+                        <p id="recent-violations" class="text-2xl font-bold text-red-600">--</p>
                     </div>
                     <div class="bg-red-100 p-3 rounded-full">
                         <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
@@ -181,8 +250,8 @@
         </div>
 
         <!-- Tabs -->
-        <div class="flex border-b border-gray-200 mb-6">
-            <button class="tab-btn py-2 px-4 font-medium text-sm border-b-2 border-indigo-600 text-indigo-600" data-tab="exams">
+        <div class="flex border-b border-gray-200 mb-6 bg-white rounded-lg p-1 shadow-sm">
+            <button class="tab-btn py-2 px-4 font-medium text-sm border-b-2 border-indigo-600 text-indigo-600 active" data-tab="exams">
                 Đề thi của tôi
             </button>
             <button class="tab-btn py-2 px-4 font-medium text-sm border-b-2 border-transparent text-gray-500" data-tab="results">
@@ -196,18 +265,18 @@
         <!-- Tab Content -->
         <div id="exams-tab" class="tab-content active">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Danh sách đề thi</h2>
+                <h2 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Danh sách đề thi</h2>
                 <div>
                     <button id="export-excel-btn" class="export-btn px-4 py-2 rounded-lg hover:bg-green-700 transition mr-2">
                         <i class="fas fa-file-excel mr-2"></i>Xuất Excel
                     </button>
-                    <button id="create-exam-btn" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                    <button id="create-exam-btn" class="btn-primary px-4 py-2 rounded-lg font-medium">
                         <i class="fas fa-plus mr-2"></i>Tạo đề thi mới
                     </button>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -231,10 +300,10 @@
 
         <div id="results-tab" class="tab-content hidden">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Bài thi cần chấm</h2>
+                <h2 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Bài thi cần chấm</h2>
             </div>
             
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -259,10 +328,10 @@
 
         <div id="violations-tab" class="tab-content hidden">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold">Vi phạm của thí sinh</h2>
+                <h2 class="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Vi phạm của thí sinh</h2>
             </div>
             
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
@@ -289,7 +358,7 @@
     <div id="create-exam-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Tạo đề thi mới</h3>
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Tạo đề thi mới</h3>
                 <button id="close-modal" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -298,13 +367,13 @@
             <form id="exam-form">
                 <div class="mb-4">
                     <label for="exam-name" class="block text-sm font-medium text-gray-700 mb-1">Tên đề thi</label>
-                    <input type="text" id="exam-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <input type="text" id="exam-name" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                         <label for="exam-time" class="block text-sm font-medium text-gray-700 mb-1">Thời gian làm bài (phút)</label>
-                        <input type="number" id="exam-time" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <input type="number" id="exam-time" min="1" required class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     </div>
                     <div>
                         <label for="exam-code" class="block text-sm font-medium text-gray-700 mb-1">Mã đề thi (tự động)</label>
@@ -338,7 +407,7 @@
                     <button type="button" id="cancel-exam" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
                         Hủy bỏ
                     </button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                    <button type="submit" class="btn-primary px-4 py-2 rounded-md">
                         Lưu đề thi
                     </button>
                 </div>
@@ -350,7 +419,7 @@
     <div id="exam-code-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 lg:w-1/3 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Mã dự thi</h3>
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Mã dự thi</h3>
                 <button id="close-code-modal" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -360,12 +429,12 @@
                 <p class="mb-2">Đề thi: <span id="modal-exam-name" class="font-medium"></span></p>
                 <p class="mb-4">Mã dự thi:</p>
                 <div id="qrcode" class="flex justify-center mb-4"></div>
-                <p id="modal-exam-code" class="font-bold text-xl mb-4"></p>
+                <p id="modal-exam-code" class="font-bold text-xl mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"></p>
                 <p class="text-sm text-gray-600">Thí sinh có thể sử dụng mã này hoặc quét mã QR để tham gia thi</p>
             </div>
             
             <div class="flex justify-end">
-                <button id="close-code-modal-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                <button id="close-code-modal-btn" class="btn-primary px-4 py-2 rounded-md">
                     Đóng
                 </button>
             </div>
@@ -376,7 +445,7 @@
     <div id="result-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-2/3 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold" id="result-modal-title">Chấm bài thi</h3>
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent" id="result-modal-title">Chấm bài thi</h3>
                 <button id="close-result-modal" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -403,7 +472,7 @@
                     <div>
                         <p><strong>Tổng điểm:</strong></p>
                         <div class="flex items-center mt-1">
-                            <input type="number" id="result-total-score-input" min="0" step="0.1" class="w-20 px-2 py-1 border border-gray-300 rounded">
+                            <input type="number" id="result-total-score-input" min="0" step="0.1" class="w-20 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                             <span class="ml-2">/ <span id="result-max-score">0</span></span>
                         </div>
                     </div>
@@ -416,7 +485,7 @@
             </div>
             
             <div class="flex justify-end space-x-3">
-                <button id="save-result" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                <button id="save-result" class="btn-primary px-4 py-2 rounded-md">
                     Lưu kết quả
                 </button>
                 <button id="cancel-result" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
@@ -430,7 +499,7 @@
     <div id="violation-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Chi tiết vi phạm</h3>
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Chi tiết vi phạm</h3>
                 <button id="close-violation-modal" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -441,7 +510,7 @@
             </div>
             
             <div class="flex justify-end mt-4">
-                <button id="close-violation-modal-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
+                <button id="close-violation-modal-btn" class="btn-primary px-4 py-2 rounded-md">
                     Đóng
                 </button>
             </div>
@@ -452,7 +521,7 @@
     <div id="export-exam-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">Xuất kết quả ra Excel</h3>
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Xuất kết quả ra Excel</h3>
                 <button id="close-export-modal" class="text-gray-500 hover:text-gray-700">
                     <i class="fas fa-times"></i>
                 </button>
@@ -460,7 +529,7 @@
             
             <div class="mb-4">
                 <label for="export-exam-select" class="block text-sm font-medium text-gray-700 mb-2">Chọn đề thi</label>
-                <select id="export-exam-select" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                <select id="export-exam-select" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                     <option value="">-- Chọn đề thi --</option>
                 </select>
             </div>
@@ -469,7 +538,7 @@
                 <button id="cancel-export" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
                     Hủy bỏ
                 </button>
-                <button id="confirm-export" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                <button id="confirm-export" class="export-btn px-4 py-2 rounded-md">
                     <i class="fas fa-file-excel mr-2"></i>Xuất Excel
                 </button>
             </div>
@@ -494,8 +563,6 @@
         const db = firebase.firestore();
 
         // DOM elements
-        const logoutBtn = document.getElementById('logout-btn');
-        const logoutBtnMobile = document.getElementById('logout-btn-mobile');
         const mobileMenuButton = document.getElementById('mobile-menu-button');
         const mobileMenu = document.getElementById('mobile-menu');
         const tabBtns = document.querySelectorAll('.tab-btn');
@@ -569,8 +636,8 @@
         });
 
         // Logout
-        logoutBtn.addEventListener('click', logout);
-        logoutBtnMobile.addEventListener('click', logout);
+        document.getElementById('logout-link').addEventListener('click', logout);
+        document.getElementById('mobile-logout-link').addEventListener('click', logout);
 
         function logout() {
             auth.signOut().then(() => {
@@ -585,10 +652,10 @@
                 
                 // Update active tab button
                 tabBtns.forEach(tb => {
-                    tb.classList.remove('border-indigo-600', 'text-indigo-600');
+                    tb.classList.remove('border-indigo-600', 'text-indigo-600', 'active');
                     tb.classList.add('border-transparent', 'text-gray-500');
                 });
-                btn.classList.add('border-indigo-600', 'text-indigo-600');
+                btn.classList.add('border-indigo-600', 'text-indigo-600', 'active');
                 btn.classList.remove('border-transparent', 'text-gray-500');
                 
                 // Show active tab content
