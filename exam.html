@@ -221,8 +221,13 @@
             background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
             color: white;
             padding: 8px 16px;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #capture-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
         }
         #canvas {
             display: none;
@@ -314,7 +319,7 @@
     </style>
 </head>
 <body>
-    <!-- Navigation -->
+    <!-- Navigation - Giống code 1 -->
     <nav class="nav-gradient shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
@@ -386,7 +391,7 @@
     <div id="fullscreen-warning" class="fullscreen-warning hidden">
         <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
         <p class="text-center mb-6">Vui lòng vào chế độ toàn màn hình để tiếp tục làm bài</p>
-        <button id="enter-fullscreen-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
+        <button id="enter-fullscreen-btn" class="btn-primary px-6 py-3 rounded-lg">
             <i class="fas fa-expand mr-2"></i>Vào chế độ toàn màn hình
         </button>
     </div>
@@ -396,7 +401,7 @@
         <i class="fas fa-desktop text-green-500 text-5xl mb-4"></i>
         <h2 class="text-2xl font-bold mb-2">Yêu cầu chia sẻ màn hình</h2>
         <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần chia sẻ toàn bộ màn hình trong suốt quá trình làm bài. Hệ thống sẽ giám sát để phát hiện các hành vi truy cập tài liệu hoặc công cụ tìm kiếm trái phép.</p>
-        <button id="start-screenshare-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
+        <button id="start-screenshare-btn" class="btn-primary px-6 py-3 rounded-lg">
             <i class="fas fa-desktop mr-2"></i>Chia sẻ màn hình
         </button>
     </div>
@@ -405,8 +410,8 @@
     <div id="camera-warning" class="camera-warning">
         <i class="fas fa-video text-indigo-500 text-5xl mb-4"></i>
         <h2 class="text-2xl font-bold mb-2">Yêu cầu truy cập camera & microphone</h2>
-        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera và microphone trong suốt quá trình làm bài. Hệ thống sẽ phát hiện các hàvi vi gian lận.</p>
-        <button id="start-camera-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
+        <p class="text-center mb-6 max-w-lg">Để đảm bảo tính công bằng, bạn cần cho phép truy cập camera và microphone trong suốt quá trình làm bài. Hệ thống sẽ phát hiện các hành vi gian lận.</p>
+        <button id="start-camera-btn" class="btn-primary px-6 py-3 rounded-lg">
             <i class="fas fa-camera mr-2"></i>Bắt đầu kiểm tra
         </button>
     </div>
@@ -414,7 +419,7 @@
     <!-- Photo Capture Section -->
     <div id="photo-section" class="hidden">
         <div class="max-w-4xl mx-auto px-4 py-8">
-            <div class="card bg-gray-50 p-6 rounded-xl text-center">
+            <div class="bg-white shadow rounded-lg p-6 mb-8 text-center card">
                 <h1 class="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Xác thực thí sinh</h1>
                 <p class="mb-4 text-gray-600">Vui lòng chụp ảnh chân dung để xác minh danh tính trước khi bắt đầu làm bài</p>
                 
@@ -423,11 +428,11 @@
                     <canvas id="canvas"></canvas>
                 </div>
                 
-                <button id="capture-btn" class="btn-primary font-bold px-4 py-2 rounded-md transition mt-4">
+                <button id="capture-btn" class="btn-primary px-4 py-2 rounded-md">
                     <i class="fas fa-camera mr-2"></i>Chụp ảnh
                 </button>
                 
-                <button id="confirm-photo-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition mt-4 hidden">
+                <button id="confirm-photo-btn" class="btn-primary px-6 py-3 rounded-lg mt-4 hidden">
                     <i class="fas fa-check mr-2"></i>Xác nhận ảnh
                 </button>
             </div>
@@ -437,12 +442,12 @@
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 py-8">
         <!-- Exam Code Input -->
-        <div id="exam-code-section" class="card bg-gray-50 p-6 rounded-xl text-center">
+        <div id="exam-code-section" class="bg-white shadow rounded-lg p-6 mb-8 text-center card">
             <h1 class="text-2xl font-bold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nhập mã dự thi</h1>
             <div class="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-4">
                 <input type="text" id="exam-code-input" placeholder="Nhập mã dự thi" class="px-4 py-2 border border-gray-300 rounded-md w-full md:w-64">
                 <span class="text-gray-500">hoặc</span>
-                <button id="scan-qr-btn" class="btn-primary font-bold px-4 py-2 rounded-md transition">
+                <button id="scan-qr-btn" class="btn-primary px-4 py-2 rounded-md">
                     <i class="fas fa-qrcode mr-2"></i>Quét mã QR
                 </button>
             </div>
@@ -450,17 +455,17 @@
                 <div class="flex justify-center">
                     <video id="qr-video" width="300" height="200" class="border border-gray-300 rounded-md"></video>
                 </div>
-                <button id="stop-scan-btn" class="mt-2 btn-secondary font-bold px-4 py-2 rounded-md transition">
+                <button id="stop-scan-btn" class="mt-2 btn-secondary px-4 py-2 rounded-md">
                     <i class="fas fa-stop mr-2"></i>Dừng quét
                 </button>
             </div>
-            <button id="start-exam-btn" class="mt-6 btn-primary font-bold px-6 py-3 rounded-lg transition hidden">
+            <button id="start-exam-btn" class="mt-6 btn-primary px-6 py-3 rounded-lg hidden">
                 <i class="fas fa-play mr-2"></i>Bắt đầu làm bài
             </button>
         </div>
 
         <!-- Exam Info -->
-        <div id="exam-info-section" class="card bg-gray-50 p-6 rounded-xl hidden">
+        <div id="exam-info-section" class="bg-white shadow rounded-lg p-6 mb-8 card hidden">
             <div class="flex justify-between items-center mb-4">
                 <h1 id="exam-name" class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent"></h1>
                 <div class="timer bg-gray-100 px-4 py-2 rounded-lg" id="exam-timer">00:00:00</div>
@@ -494,8 +499,8 @@
                     <!-- Questions will be loaded here -->
                 </div>
                 
-                <div class="mt-8 card bg-gray-50 p-6 rounded-xl">
-                    <button type="submit" id="submit-exam-btn" class="w-full btn-primary font-bold px-6 py-3 rounded-lg transition">
+                <div class="mt-8 bg-white shadow rounded-lg p-6 card">
+                    <button type="submit" id="submit-exam-btn" class="w-full btn-primary px-6 py-3 rounded-lg">
                         <i class="fas fa-paper-plane mr-2"></i>Nộp bài
                     </button>
                 </div>
@@ -503,11 +508,11 @@
         </div>
 
         <!-- Exam Completed -->
-        <div id="exam-completed-section" class="card bg-gray-50 p-6 rounded-xl text-center hidden">
+        <div id="exam-completed-section" class="bg-white shadow rounded-lg p-6 text-center card hidden">
             <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
             <h2 class="text-2xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Hoàn thành bài thi</h2>
             <p class="text-gray-600 mb-6">Bạn đã hoàn thành bài thi. Kết quả sẽ được thông báo sau khi giáo viên chấm điểm.</p>
-            <button id="exit-exam-btn" class="btn-primary font-bold px-6 py-3 rounded-lg transition">
+            <button id="exit-exam-btn" class="btn-primary px-6 py-3 rounded-lg">
                 <i class="fas fa-sign-out-alt mr-2"></i>Thoát
             </button>
         </div>
@@ -1038,7 +1043,7 @@
                 const data = await response.json();
                 
                 if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    const responseText = data.candidates[0].content.parts[0.text;
+                    const responseText = data.candidates[0].content.parts[0].text;
                     try {
                         const jsonStart = responseText.indexOf('{');
                         const jsonEnd = responseText.lastIndexOf('}') + 1;
@@ -1534,7 +1539,7 @@
             
             currentExam.questions.forEach((question, index) => {
                 const questionEl = document.createElement('div');
-                questionEl.className = 'question-block card bg-gray-50 p-6 rounded-xl';
+                questionEl.className = 'question-block bg-white shadow rounded-lg p-6 card';
                 
                 if (question.type === 'mcq') {
                     questionEl.innerHTML = `
