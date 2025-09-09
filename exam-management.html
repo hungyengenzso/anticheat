@@ -1340,7 +1340,7 @@ D. Đáp án D
                                                 `;
                                             } else if (question.type === 'tf') {
                                                 const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
-                                                const studentAnswerText = studentAnswer === 'true' : 'Đúng' : 'Sai';
+                                                const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
                                                 
                                                 questionHtml = `
                                                     <div class="mb-4">
@@ -1763,7 +1763,7 @@ D. Đáp án D
                 })
                 .catch(error => {
                     console.error('Error saving exam result:', error);
-                    alert('Cá» lỗi xảy ra khi lưu kết quả');
+                    alert('Có lỗi xảy ra khi lưu kết quả');
                 });
         }
 
@@ -2050,102 +2050,103 @@ D. Đáp án D
             }
         }
 
-        // Call Gemini API (FIXED VERSION)
-        async function callGeminiAPI(textContent) {
-            const prompt = `
-            Bạn là trợ lý chuyên phân tích và chuyển đổi đề thi từ văn bản thuần túy sang định dạng JSON. 
-            Hãy phân tích nội dung và trích xuất thông tin đề thi theo cấu trúc sau:
-            
-            {
-              "name": "Tên đề thi",
-              "time": Thời gian làm bài (phút),
-              "questions": [
-                {
-                  "type": "material|mcq|tf|sa|essay",
-                  "content": "Nội dung tư liệu" // Chỉ cho loại material
-                  "question": "Nội dung câu hỏi", // Cho các loại khác
-                  "options": ["Lựa chọn 1", "Lựa chọn 2", ...] // Chỉ cho loại mcq
-                  "correctOption": "0", // Chỉ cho loại mcq (index của đáp án đúng)
-                  "correctAnswer": "Đáp án đúng" // Cho loại tf, sa
-                },
-                ...
-              ]
-            }
-            
-            Quy tắc xác định loại câu hỏi:
-            - material (tư liệu): Nội dung dài, đoạn văn, tài liệu tham khảo, không phải câu hỏi
-            - mcq (trắc nghiệm): Câu hỏi có nhiều lựa chọn (A, B, C, D...)
-            - tf (đúng/sai): Câu hỏi chỉ có 2 lựa chọn Đúng/Sai
-            - sa (trả lời ngắn): Câu hỏi yêu cầu trả lời ngắn (1-2 từ)
-            - essay (tự luận): Câu hỏi yêu cầu trả lời dài, giải thích, phân tích
-            
-            Đặc biệt: Nếu gặp dạng đề có đoạn văn với chỗ trống và các lựa chọn điền vào chỗ trống, 
-            hãy tách thành:
-            1. Một tư liệu (material) chứa toàn bộ đoạn văn với các chỗ trống được đánh số (1), (2)...
-            2. Các câu hỏi trả lời ngắn (sa) tương ứng với từng chỗ trống, với câu hỏi là "Chỗ trống (1):" 
-               và đáp án là các lựa chọn (định dạng: A. Lựa chọn A, B. Lựa chọn B, ...)
-            
-            Hãy phân tích kỹ nội dung và trả về kết quả dưới dạng JSON hợp lệ.
-            
-            Nội dung đề thi:
-            ${textContent}
-            `;
+        // Call Gemini API
+// Call Gemini API (FIXED VERSION)
+async function callGeminiAPI(textContent) {
+    const prompt = `
+    Bạn là trợ lý chuyên phân tích và chuyển đổi đề thi từ văn bản thuần túy sang định dạng JSON. 
+    Hãy phân tích nội dung và trích xuất thông tin đề thi theo cấu trúc sau:
+    
+    {
+      "name": "Tên đề thi",
+      "time": Thời gian làm bài (phút),
+      "questions": [
+        {
+          "type": "material|mcq|tf|sa|essay",
+          "content": "Nội dung tư liệu" // Chỉ cho loại material
+          "question": "Nội dung câu hỏi", // Cho các loại khác
+          "options": ["Lựa chọn 1", "Lựa chọn 2", ...] // Chỉ cho loại mcq
+          "correctOption": "0", // Chỉ cho loại mcq (index của đáp án đúng)
+          "correctAnswer": "Đáp án đúng" // Cho loại tf, sa
+        },
+        ...
+      ]
+    }
+    
+    Quy tắc xác định loại câu hỏi:
+    - material (tư liệu): Nội dung dài, đoạn văn, tài liệu tham khảo, không phải câu hỏi
+    - mcq (trắc nghiệm): Câu hỏi có nhiều lựa chọn (A, B, C, D...)
+    - tf (đúng/sai): Câu hỏi chỉ có 2 lựa chọn Đúng/Sai
+    - sa (trả lời ngắn): Câu hỏi yêu cầu trả lời ngắn (1-2 từ)
+    - essay (tự luận): Câu hỏi yêu cầu trả lời dài, giải thích, phân tích
+    
+    Đặc biệt: Nếu gặp dạng đề có đoạn văn với chỗ trống và các lựa chọn điền vào chỗ trống, 
+    hãy tách thành:
+    1. Một tư liệu (material) chứa toàn bộ đoạn văn với các chỗ trống được đánh số (1), (2)...
+    2. Các câu hỏi trả lời ngắn (sa) tương ứng với từng chỗ trống, với câu hỏi là "Chỗ trống (1):" 
+       và đáp án là các lựa chọn (định dạng: A. Lựa chọn A, B. Lựa chọn B, ...)
+    
+    Hãy phân tích kỹ nội dung và trả về kết quả dưới dạng JSON hợp lệ.
+    
+    Nội dung đề thi:
+    ${textContent}
+    `;
 
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [
-                                { 
-                                    text: prompt 
-                                }
-                            ]
-                        }],
-                        generationConfig: {
-                            temperature: 0.1,
-                            maxOutputTokens: 2048,
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [
+                        { 
+                            text: prompt 
                         }
-                    })
-                });
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 2048,
+                }
+            })
+        });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || 'Lỗi khi gọi Gemini API');
-                }
-
-                const data = await response.json();
-                
-                // FIX: Kiểm tra cấu trúc dữ liệu trả về và xử lý phù hợp
-                let responseText = '';
-                
-                if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
-                    responseText = data.candidates[0].content.parts[0].text;
-                } else if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
-                    responseText = data.choices[0].message.content;
-                } else if (data.predictions && data.predictions.length > 0) {
-                    responseText = data.predictions[0].content;
-                } else {
-                    console.error('Unexpected API response structure:', data);
-                    throw new Error('Cấu trúc phản hồi API không xác định');
-                }
-                
-                // Extract JSON from response (might be wrapped in markdown code blocks)
-                let jsonStr = responseText;
-                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/```\n([\s\S]*?)\n```/);
-                if (jsonMatch) {
-                    jsonStr = jsonMatch[1];
-                }
-                
-                return JSON.parse(jsonStr);
-            } catch (error) {
-                console.error('Error calling Gemini API:', error);
-                throw new Error('Không thể xử lý văn bản: ' + error.message);
-            }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || 'Lỗi khi gọi Gemini API');
         }
+
+        const data = await response.json();
+        
+        // FIX: Kiểm tra cấu trúc dữ liệu trả về và xử lý phù hợp
+        let responseText = '';
+        
+        if (data.candidates && data.candidates.length > 0 && data.candidates[0].content && data.candidates[0].content.parts) {
+            responseText = data.candidates[0].content.parts[0].text;
+        } else if (data.choices && data.choices.length > 0 && data.choices[0].message && data.choices[0].message.content) {
+            responseText = data.choices[0].message.content;
+        } else if (data.predictions && data.predictions.length > 0) {
+            responseText = data.predictions[0].content;
+        } else {
+            console.error('Unexpected API response structure:', data);
+            throw new Error('Cấu trúc phản hồi API không xác định');
+        }
+        
+        // Extract JSON from response (might be wrapped in markdown code blocks)
+        let jsonStr = responseText;
+        const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/```\n([\s\S]*?)\n```/);
+        if (jsonMatch) {
+            jsonStr = jsonMatch[1];
+        }
+        
+        return JSON.parse(jsonStr);
+    } catch (error) {
+        console.error('Error calling Gemini API:', error);
+        throw new Error('Không thể xử lý văn bản: ' + error.message);
+    }
+}
 
         // Fill exam form with extracted data
         function fillExamForm(examData) {
@@ -2188,7 +2189,7 @@ D. Đáp án D
                 questionHtml = `
                     <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="mcq" data-id="${questionId}">
                         <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu h�ỏi trắc nghiệm #${questionCount}</label>
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi trắc nghiệm #${questionCount}</label>
                             <button type="button" class="delete-question text-red-500 hover:text-red-700">
                                 <i class="fas fa-times"></i>
                             </button>
