@@ -148,10 +148,6 @@
         .question-block:hover {
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
-        .material-block {
-            background-color: #f0f9ff;
-            border-left: 4px solid #0ea5e9;
-        }
         .modal {
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
@@ -173,24 +169,22 @@
             border-bottom-color: #7c3aed;
             color: #7c3aed;
         }
-        .loader {
-            border-top-color: #4f46e5;
-            animation: spin 1s linear infinite;
+        .material-block {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        .ai-processing {
+            background-color: #fef3c7;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
         }
-        .manual-input-mode .score-input {
-            border-color: #4f46e5;
-            background-color: #f5f3ff;
-        }
-        .material-content {
-            white-space: pre-wrap;
-            background-color: #f8fafc;
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #e2e8f0;
+        .ai-result {
+            background-color: #ecfdf5;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+            border: 1px solid #10b981;
         }
     </style>
 </head>
@@ -404,30 +398,51 @@
                     </div>
                 </div>
                 
+                <!-- AI Input Section -->
+                <div class="mb-6 border-t border-gray-200 pt-4">
+                    <h4 class="text-md font-medium text-gray-700 mb-2">Tạo đề thi từ văn bản (sử dụng AI)</h4>
+                    <div class="mb-3">
+                        <label for="ai-input" class="block text-sm font-medium text-gray-700 mb-1">Nhập văn bản để tạo đề thi</label>
+                        <textarea id="ai-input" rows="5" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" placeholder="Dán văn bản của bạn ở đây..."></textarea>
+                    </div>
+                    <button type="button" id="generate-from-ai" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700">
+                        <i class="fas fa-robot mr-2"></i>Tạo đề từ văn bản
+                    </button>
+                    <div id="ai-processing" class="ai-processing hidden">
+                        <p class="text-center"><i class="fas fa-spinner fa-spin mr-2"></i>Đang xử lý văn bản...</p>
+                    </div>
+                    <div id="ai-result" class="ai-result hidden">
+                        <h5 class="font-medium mb-2">Kết quả xử lý:</h5>
+                        <div id="ai-result-content"></div>
+                        <div class="mt-3 flex justify-end">
+                            <button type="button" id="apply-ai-result" class="btn-primary px-3 py-1 text-sm rounded-md">
+                                Áp dụng vào đề thi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Nội dung đề thi</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Câu hỏi & Tư liệu</label>
                     <div id="questions-container" class="space-y-4">
                         <!-- Questions and materials will be added here -->
                     </div>
                     
-                    <div class="mt-4 flex space-x-2 flex-wrap">
-                        <button type="button" id="add-material" class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200 mb-2">
-                            <i class="fas fa-file-alt mr-1"></i>Tư liệu
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <button type="button" id="add-material" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200">
+                            <i class="fas fa-file-alt mr-1"></i>Thêm tư liệu
                         </button>
-                        <button type="button" id="add-mcq" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200 mb-2">
+                        <button type="button" id="add-mcq" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200">
                             <i class="fas fa-list-ol mr-1"></i>Trắc nghiệm
                         </button>
-                        <button type="button" id="add-tf" class="bg-green-100 text-green-700 px-3 py-1 rounded text-sm hover:bg-green-200 mb-2">
+                        <button type="button" id="add-tf" class="bg-green-100 text-green-700 px-3 py-1 rounded text-sm hover:bg-green-200">
                             <i class="fas fa-check-circle mr-1"></i>Đúng/Sai
                         </button>
-                        <button type="button" id="add-sa" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-200 mb-2">
+                        <button type="button" id="add-sa" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-200">
                             <i class="fas fa-comment-alt mr-1"></i>Trả lời ngắn
                         </button>
-                        <button type="button" id="add-essay" class="bg-purple-100 text-purple-700 px-3 py-1 rounded text-sm hover:bg-purple-200 mb-2">
+                        <button type="button" id="add-essay" class="bg-purple-100 text-purple-700 px-3 py-1 rounded text-sm hover:bg-purple-200">
                             <i class="fas fa-align-left mr-1"></i>Tự luận
-                        </button>
-                        <button type="button" id="import-text" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm hover:bg-indigo-200 mb-2">
-                            <i class="fas fa-file-alt mr-1"></i>Nhập từ văn bản
                         </button>
                     </div>
                 </div>
@@ -441,57 +456,6 @@
                     </button>
                 </div>
             </form>
-        </div>
-    </div>
-
-    <!-- Import Text Modal -->
-    <div id="import-text-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nhập đề thi từ văn bản</h3>
-                <button id="close-import-modal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">Dán nội dung đề thi</label>
-                <textarea id="text-content" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Dán nội dung đề thi ở đây. Mỗi câu hỏi trên một dòng, định dạng:
-1. Câu hỏi trắc nghiệm?
-A. Đáp án A
-B. Đáp án B
-C. Đáp án C
-D. Đáp án D
-Đáp án: A
-
-2. Câu hỏi đúng/sai?
-Đáp án: Đúng
-
-3. Câu hỏi trả lời ngắn?
-Đáp án: Nội dung trả lời
-
-4. Tư liệu:
-[Nội dung tư liệu]"></textarea>
-                <p class="text-xs text-gray-500 mt-1">Hỗ trợ định dạng văn bản thuần túy. Sử dụng Gemini  để phân tích cấu trúc đề thi.</p>
-            </div>
-            
-            <div id="import-status" class="mb-4 hidden">
-                <div class="flex items-center">
-                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mr-2"></div>
-                    <span>Đang xử lý văn bản...</span>
-                </div>
-            </div>
-            
-            <div id="import-error" class="mb-4 p-3 bg-red-100 text-red-700 rounded hidden"></div>
-            
-            <div class="flex justify-end space-x-3">
-                <button id="cancel-import" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
-                    Hủy bỏ
-                </button>
-                <button id="process-text" class="btn-primary px-4 py-2 rounded-md">
-                    <i class="fas fa-cog mr-2"></i>Xử lý
-                </button>
-            </div>
         </div>
     </div>
 
@@ -556,12 +520,7 @@ D. Đáp án D
                             <span class="ml-2">/ <span id="result-max-score">0</span></span>
                         </div>
                     </div>
-                    <div>
-                        <label class="inline-flex items-center">
-                            <input type="checkbox" id="manual-scoring-mode" class="mr-2">
-                            <span>Chế độ nhập điểm thủ công</span>
-                        </label>
-                    </div>
+                    <p class="text-xl font-bold hidden"><span id="result-total-score">0</span>/<span id="result-max-score">0</span></p>
                 </div>
             </div>
             
@@ -645,7 +604,7 @@ D. Đáp án D
         // Gemini API configuration
         const GEMINI_CONFIG = {
             apiKey: 'AIzaSyAQMglgiKEHY8XznNf9ZIdjYMnKgH9DhJg',
-            model: 'gemini-2.5-flash'
+            model: 'gemini-2.5-flash-preview-05-20'
         };
 
         // Initialize Firebase
@@ -681,7 +640,6 @@ D. Đáp án D
         const confirmExport = document.getElementById('confirm-export');
         const exportExamSelect = document.getElementById('export-exam-select');
         const resultTotalScoreInput = document.getElementById('result-total-score-input');
-        const manualScoringMode = document.getElementById('manual-scoring-mode');
         
         // Create exam modal elements
         const createExamBtn = document.getElementById('create-exam-btn');
@@ -701,16 +659,14 @@ D. Đáp án D
         const modalExamName = document.getElementById('modal-exam-name');
         const modalExamCode = document.getElementById('modal-exam-code');
         const qrcodeDiv = document.getElementById('qrcode');
-
-        // Text import elements
-        const importTextBtn = document.getElementById('import-text');
-        const importTextModal = document.getElementById('import-text-modal');
-        const closeImportModalBtn = document.getElementById('close-import-modal');
-        const cancelImportBtn = document.getElementById('cancel-import');
-        const processTextBtn = document.getElementById('process-text');
-        const textContentInput = document.getElementById('text-content');
-        const importStatus = document.getElementById('import-status');
-        const importError = document.getElementById('import-error');
+        
+        // AI elements
+        const aiInput = document.getElementById('ai-input');
+        const generateFromAiBtn = document.getElementById('generate-from-ai');
+        const aiProcessing = document.getElementById('ai-processing');
+        const aiResult = document.getElementById('ai-result');
+        const aiResultContent = document.getElementById('ai-result-content');
+        const applyAiResultBtn = document.getElementById('apply-ai-result');
 
         // Current user and exam data
         let currentUser = null;
@@ -719,6 +675,7 @@ D. Đáp án D
         let currentResultId = null;
         let questionCount = 0;
         let examListData = [];
+        let aiGeneratedContent = null;
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -781,6 +738,12 @@ D. Đáp án D
             questionsContainer.innerHTML = '';
             questionCount = 0;
             
+            // Reset AI section
+            aiInput.value = '';
+            aiProcessing.classList.add('hidden');
+            aiResult.classList.add('hidden');
+            aiGeneratedContent = null;
+            
             createExamModal.classList.remove('hidden');
         });
 
@@ -794,26 +757,110 @@ D. Đáp án D
         });
 
         // Add question types
-        addMaterialBtn.addEventListener('click', () => addQuestion('material'));
+        addMaterialBtn.addEventListener('click', () => addMaterial());
         addMcqBtn.addEventListener('click', () => addQuestion('mcq'));
         addTfBtn.addEventListener('click', () => addQuestion('tf'));
         addSaBtn.addEventListener('click', () => addQuestion('sa'));
         addEssayBtn.addEventListener('click', () => addQuestion('essay'));
 
-        // Text import functionality
-        importTextBtn.addEventListener('click', () => {
-            importTextModal.classList.remove('hidden');
+        // Generate exam from AI
+        generateFromAiBtn.addEventListener('click', () => {
+            const text = aiInput.value.trim();
+            if (!text) {
+                alert('Vui lòng nhập văn bản để tạo đề thi');
+                return;
+            }
+            
+            aiProcessing.classList.remove('hidden');
+            aiResult.classList.add('hidden');
+            
+            // Call Gemini API
+            generateExamFromText(text)
+                .then(result => {
+                    aiProcessing.classList.add('hidden');
+                    aiResult.classList.remove('hidden');
+                    aiGeneratedContent = result;
+                    
+                    // Display the result
+                    let resultHtml = '<div class="space-y-4">';
+                    
+                    if (result.materials && result.materials.length > 0) {
+                        resultHtml += '<div><h6 class="font-medium">Tư liệu:</h6>';
+                        result.materials.forEach(material => {
+                            resultHtml += `<div class="material-block p-3 rounded mb-2">${material.content}</div>`;
+                        });
+                        resultHtml += '</div>';
+                    }
+                    
+                    if (result.questions && result.questions.length > 0) {
+                        resultHtml += '<div><h6 class="font-medium">Câu hỏi:</h6>';
+                        result.questions.forEach((question, index) => {
+                            resultHtml += `<div class="p-3 border rounded mb-2"><strong>Câu ${index + 1}:</strong> ${question.question}`;
+                            
+                            if (question.type === 'mcq' && question.options) {
+                                resultHtml += '<div class="mt-2 ml-4">';
+                                question.options.forEach((option, i) => {
+                                    resultHtml += `<div>${String.fromCharCode(65 + i)}. ${option}</div>`;
+                                });
+                                resultHtml += `<div class="mt-1 text-sm text-green-600">Đáp án đúng: ${String.fromCharCode(65 + parseInt(question.correctOption))}</div>`;
+                                resultHtml += '</div>';
+                            } else if (question.type === 'tf') {
+                                resultHtml += `<div class="mt-1 text-sm text-green-600">Đáp án đúng: ${question.correctAnswer === 'true' ? 'Đúng' : 'Sai'}</div>`;
+                            } else if (question.type === 'sa') {
+                                resultHtml += `<div class="mt-1 text-sm text-green-600">Đáp án đúng: ${question.correctAnswer}</div>`;
+                            }
+                            
+                            resultHtml += '</div>';
+                        });
+                        resultHtml += '</div>';
+                    }
+                    
+                    resultHtml += '</div>';
+                    aiResultContent.innerHTML = resultHtml;
+                })
+                .catch(error => {
+                    aiProcessing.classList.add('hidden');
+                    console.error('Error generating exam from AI:', error);
+                    alert('Có lỗi xảy ra khi tạo đề thi từ AI: ' + error.message);
+                });
         });
 
-        closeImportModalBtn.addEventListener('click', () => {
-            importTextModal.classList.add('hidden');
+        // Apply AI result to exam form
+        applyAiResultBtn.addEventListener('click', () => {
+            if (!aiGeneratedContent) {
+                alert('Không có dữ liệu để áp dụng');
+                return;
+            }
+            
+            // Clear existing questions
+            questionsContainer.innerHTML = '';
+            questionCount = 0;
+            
+            // Add materials
+            if (aiGeneratedContent.materials && aiGeneratedContent.materials.length > 0) {
+                aiGeneratedContent.materials.forEach(material => {
+                    addMaterial(material.content);
+                });
+            }
+            
+            // Add questions
+            if (aiGeneratedContent.questions && aiGeneratedContent.questions.length > 0) {
+                aiGeneratedContent.questions.forEach(question => {
+                    if (question.type === 'mcq') {
+                        addQuestion('mcq', question);
+                    } else if (question.type === 'tf') {
+                        addQuestion('tf', question);
+                    } else if (question.type === 'sa') {
+                        addQuestion('sa', question);
+                    } else if (question.type === 'essay') {
+                        addQuestion('essay', question);
+                    }
+                });
+            }
+            
+            aiResult.classList.add('hidden');
+            alert('Đã áp dụng đề thi được tạo từ AI thành công!');
         });
-
-        cancelImportBtn.addEventListener('click', () => {
-            importTextModal.classList.add('hidden');
-        });
-
-        processTextBtn.addEventListener('click', processTextContent);
 
         // Submit exam form
         examForm.addEventListener('submit', e => {
@@ -824,63 +871,63 @@ D. Đáp án D
             const examCode = document.getElementById('exam-code').value;
             
             // Collect questions and materials
-            const questions = [];
-            const questionBlocks = questionsContainer.querySelectorAll('.question-block');
+            const items = [];
+            const itemBlocks = questionsContainer.querySelectorAll('.question-block, .material-block');
             
-            questionBlocks.forEach(block => {
+            itemBlocks.forEach(block => {
                 const type = block.getAttribute('data-type');
                 
                 if (type === 'material') {
                     const content = block.querySelector('.material-content').value;
-                    
-                    questions.push({
+                    items.push({
                         type,
                         content
                     });
-                } else {
+                } else if (type === 'mcq') {
+                    const question = block.querySelector('.question-text').value;
+                    const options = [];
+                    const optionInputs = block.querySelectorAll('.option-input');
+                    const correctOption = block.querySelector('input[name="correct-option"]:checked').value;
+                    
+                    optionInputs.forEach(input => {
+                        options.push(input.value);
+                    });
+                    
+                    items.push({
+                        type,
+                        question,
+                        options,
+                        correctOption: correctOption.toString()
+                    });
+                } else if (type === 'tf') {
+                    const question = block.querySelector('.question-text').value;
+                    const correctAnswer = block.querySelector('input[name="tf-answer"]:checked').value;
+                    
+                    items.push({
+                        type,
+                        question,
+                        correctAnswer
+                    });
+                } else if (type === 'sa') {
+                    const question = block.querySelector('.question-text').value;
+                    const correctAnswer = block.querySelector('.sa-answer').value;
+                    
+                    items.push({
+                        type,
+                        question,
+                        correctAnswer
+                    });
+                } else if (type === 'essay') {
                     const question = block.querySelector('.question-text').value;
                     
-                    if (type === 'mcq') {
-                        const options = [];
-                        const optionInputs = block.querySelectorAll('.option-input');
-                        const correctOption = block.querySelector('input[name="correct-option"]:checked').value;
-                        
-                        optionInputs.forEach(input => {
-                            options.push(input.value);
-                        });
-                        
-                        questions.push({
-                            type,
-                            question,
-                            options,
-                            correctOption: correctOption.toString() // Đảm bảo correctOption là string
-                        });
-                    } else if (type === 'tf') {
-                        const correctAnswer = block.querySelector('input[name="tf-answer"]:checked').value;
-                        
-                        questions.push({
-                            type,
-                            question,
-                            correctAnswer
-                        });
-                    } else if (type === 'sa') {
-                        const correctAnswer = block.querySelector('.sa-answer').value;
-                        
-                        questions.push({
-                            type,
-                            question,
-                            correctAnswer
-                        });
-                    } else if (type === 'essay') {
-                        questions.push({
-                            type,
-                            question
-                        });
-                    }
+                    items.push({
+                        type,
+                        question
+                    });
                 }
             });
             
-            if (questions.filter(q => q.type !== 'material').length === 0) {
+            if (items.filter(item => item.type !== 'material').length === 0) {
                 alert('Vui lòng thêm ít nhất một câu hỏi');
                 return;
             }
@@ -890,7 +937,7 @@ D. Đáp án D
                 name: examName,
                 time: examTime,
                 code: examCode,
-                questions: questions,
+                items: items,
                 createdBy: currentUser.uid,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             })
@@ -907,7 +954,7 @@ D. Đáp án D
                 qrcodeDiv.innerHTML = '';
                 QRCode.toCanvas(qrcodeDiv, examCode, { 
                     width: 200,
-                    errorCorrectionLevel: 'H', // High error correction
+                    errorCorrectionLevel: 'H',
                     margin: 2,
                     color: {
                         dark: '#000000',
@@ -992,8 +1039,8 @@ D. Đáp án D
                         const examId = doc.id;
                         examListData.push({ id: examId, ...exam });
                         
-                        // Count actual questions (excluding materials)
-                        const questionCount = exam.questions.filter(q => q.type !== 'material').length;
+                        // Count questions (excluding materials)
+                        const questionCount = exam.items ? exam.items.filter(item => item.type !== 'material').length : 0;
                         
                         const row = document.createElement('tr');
                         row.innerHTML = `
@@ -1070,7 +1117,7 @@ D. Đáp án D
                                 db.collection('exams').doc(result.examId).get()
                                     .then(examDoc => {
                                         const examName = examDoc.exists ? examDoc.data().name : 'Đề thi đã bị xóa';
-                                        const totalQuestions = examDoc.exists ? examDoc.data().questions.filter(q => q.type !== 'material').length : 0;
+                                        const totalQuestions = examDoc.exists ? examDoc.data().items.filter(item => item.type !== 'material').length : 0;
                                         
                                         const row = document.createElement('tr');
                                         
@@ -1082,10 +1129,10 @@ D. Đáp án D
                                         } else {
                                             // Check if there are essay questions that need grading
                                             const hasEssayQuestions = examDoc.exists && 
-                                                examDoc.data().questions.some(q => q.type === 'essay');
+                                                examDoc.data().items.some(q => q.type === 'essay');
                                             const hasUngradedEssay = hasEssayQuestions && 
                                                 result.answers.some((a, i) => 
-                                                    examDoc.data().questions[i].type === 'essay' && 
+                                                    examDoc.data().items[i].type === 'essay' && 
                                                     (a.manualScore === null || a.manualScore === undefined)
                                                 );
                                             
@@ -1206,8 +1253,8 @@ D. Đáp án D
             if (result.status === 'graded') return 'Đã chấm';
             
             // Check for ungraded essay questions
-            if (examData && examData.questions) {
-                const hasUngradedEssay = examData.questions.some((q, i) => 
+            if (examData && examData.items) {
+                const hasUngradedEssay = examData.items.some((q, i) => 
                     q.type === 'essay' && 
                     (result.answers[i]?.manualScore === null || result.answers[i]?.manualScore === undefined)
                 );
@@ -1224,7 +1271,7 @@ D. Đáp án D
                 .then(doc => {
                     if (doc.exists) {
                         const exam = doc.data();
-                        const questionCount = exam.questions.filter(q => q.type !== 'material').length;
+                        const questionCount = exam.items ? exam.items.filter(item => item.type !== 'material').length : 0;
                         alert(`Xem chi tiết đề thi: ${exam.name}\nThời gian: ${exam.time} phút\nSố câu hỏi: ${questionCount}\nMã dự thi: ${exam.code}`);
                     } else {
                         alert('Đề thi không tồn tại');
@@ -1266,8 +1313,8 @@ D. Đáp án D
                                     // Calculate total score (auto score + manual scores for essays)
                                     let totalScore = result.score || 0; // Start with auto score
                                     if (result.answers) {
-                                        currentExamData.questions.forEach((q, i) => {
-                                            if (q.type === 'essay') {
+                                        currentExamData.items.forEach((item, i) => {
+                                            if (item.type === 'essay') {
                                                 totalScore += result.answers[i]?.manualScore || 0;
                                             }
                                         });
@@ -1280,9 +1327,9 @@ D. Đáp án D
                                     document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
                                     document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
                                     document.getElementById('result-violations').textContent = result.violations || 0;
-                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.filter(q => q.type !== 'material').length}`;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.items.filter(item => item.type !== 'material').length}`;
                                     document.getElementById('result-total-score').textContent = totalScore;
-                                    document.getElementById('result-max-score').textContent = currentExamData.questions.filter(q => q.type !== 'material').length;
+                                    document.getElementById('result-max-score').textContent = currentExamData.items.filter(item => item.type !== 'material').length;
                                     
                                     // Show student photo if available
                                     if (result.studentPhoto) {
@@ -1295,29 +1342,33 @@ D. Đáp án D
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
                                     
-                                    currentExamData.questions.forEach((question, index) => {
-                                        // Skip materials in results view
-                                        if (question.type === 'material') return;
+                                    let questionIndex = 0;
+                                    currentExamData.items.forEach((item, index) => {
+                                        if (item.type === 'material') {
+                                            // Skip materials in result view
+                                            return;
+                                        }
                                         
+                                        questionIndex++;
                                         const questionElement = document.createElement('div');
                                         const studentAnswer = result.answers[index]?.answer || '';
-                                        const isCorrect = checkAnswerCorrect(question, studentAnswer);
+                                        const isCorrect = checkAnswerCorrect(item, studentAnswer);
                                         
                                         // Remove background color for essay questions
                                         questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
-                                            question.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
+                                            item.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
                                         }`;
                                         
                                         let questionHtml = '';
                                         
-                                        if (question.type === 'mcq') {
+                                        if (item.type === 'mcq') {
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="space-y-2 mb-3">
-                                                        ${question.options.map((option, i) => {
-                                                            const isStudentAnswer = String(studentAnswer) === String(i); // So sánh dạng string
-                                                            const isCorrectOption = String(question.correctOption) === String(i); // So sánh dạng string
+                                                        ${item.options.map((option, i) => {
+                                                            const isStudentAnswer = String(studentAnswer) === String(i);
+                                                            const isCorrectOption = String(item.correctOption) === String(i);
                                                             return `
                                                                 <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
                                                                     <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
@@ -1331,33 +1382,33 @@ D. Đáp án D
                                                         }).join('')}
                                                     </div>
                                                     <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
+                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(item.correctOption))}. ${item.options[item.correctOption]}
                                                     </div>
                                                     <div class="mt-2 text-sm font-medium">
                                                         Điểm: ${isCorrect ? '1' : '0'}/1
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'tf') {
-                                            const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
+                                        } else if (item.type === 'tf') {
+                                            const correctAnswerText = item.correctAnswer === 'true' ? 'Đúng' : 'Sai';
                                             const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
                                             
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="space-y-2 mb-3">
-                                                        <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
+                                                        <div class="answer-label ${item.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
                                                             <span>Đúng</span>
                                                             ${studentAnswer === 'true' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                            ${studentAnswer === 'true' && item.correctAnswer !== 'true' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
-                                                        <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
+                                                        <div class="answer-label ${item.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
                                                             <span>Sai</span>
                                                             ${studentAnswer === 'false' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
+                                                            ${studentAnswer === 'false' && item.correctAnswer !== 'false' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
                                                     </div>
@@ -1369,16 +1420,16 @@ D. Đáp án D
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'sa') {
+                                        } else if (item.type === 'sa') {
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="mb-3">
                                                         <p class="font-bold">Trả lời của thí sinh:</p>
                                                         <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
                                                     </div>
                                                     <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${question.correctAnswer}
+                                                        <strong>Đáp án đúng:</strong> ${item.correctAnswer}
                                                     </div>
                                                     ${!isCorrect ? 
                                                         `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
@@ -1388,11 +1439,11 @@ D. Đáp án D
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'essay') {
+                                        } else if (item.type === 'essay') {
                                             const manualScore = result.answers[index]?.manualScore || 0;
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="mb-3">
                                                         <p class="font-bold">Trả lời của thí sinh:</p>
                                                         <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
@@ -1461,12 +1512,12 @@ D. Đáp án D
                                     document.getElementById('result-exam-date').textContent = result.submittedAt.toDate().toLocaleString();
                                     document.getElementById('result-exam-duration').textContent = result.timeTaken || 'N/A';
                                     document.getElementById('result-violations').textContent = result.violations || 0;
-                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.questions.filter(q => q.type !== 'material').length}`;
-                                    document.getElementById('result-max-score').textContent = currentExamData.questions.filter(q => q.type !== 'material').length;
+                                    document.getElementById('result-auto-score').textContent = `${result.score || 0}/${currentExamData.items.filter(item => item.type !== 'material').length}`;
+                                    document.getElementById('result-max-score').textContent = currentExamData.items.filter(item => item.type !== 'material').length;
                                     
                                     // Set total score input
                                     resultTotalScoreInput.value = result.finalScore || result.score || 0;
-                                    resultTotalScoreInput.max = currentExamData.questions.filter(q => q.type !== 'material').length;
+                                    resultTotalScoreInput.max = currentExamData.items.filter(item => item.type !== 'material').length;
                                     
                                     // Show student photo if available
                                     if (result.studentPhoto) {
@@ -1479,29 +1530,33 @@ D. Đáp án D
                                     // Load questions
                                     resultQuestionsContainer.innerHTML = '';
                                     
-                                    currentExamData.questions.forEach((question, index) => {
-                                        // Skip materials in grading view
-                                        if (question.type === 'material') return;
+                                    let questionIndex = 0;
+                                    currentExamData.items.forEach((item, index) => {
+                                        if (item.type === 'material') {
+                                            // Skip materials in grading view
+                                            return;
+                                        }
                                         
+                                        questionIndex++;
                                         const questionElement = document.createElement('div');
                                         const studentAnswer = result.answers[index]?.answer || '';
-                                        const isCorrect = checkAnswerCorrect(question, studentAnswer);
+                                        const isCorrect = checkAnswerCorrect(item, studentAnswer);
                                         
                                         // Remove background color for essay questions
                                         questionElement.className = `question-block p-4 rounded-lg border border-gray-200 mb-4 ${
-                                            question.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
+                                            item.type !== 'essay' ? (isCorrect ? 'correct-answer' : 'incorrect-answer') : ''
                                         }`;
                                         
                                         let questionHtml = '';
                                         
-                                        if (question.type === 'mcq') {
+                                        if (item.type === 'mcq') {
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="space-y-2 mb-3">
-                                                        ${question.options.map((option, i) => {
-                                                            const isStudentAnswer = String(studentAnswer) === String(i); // So sánh dạng string
-                                                            const isCorrectOption = String(question.correctOption) === String(i); // So sánh dạng string
+                                                        ${item.options.map((option, i) => {
+                                                            const isStudentAnswer = String(studentAnswer) === String(i);
+                                                            const isCorrectOption = String(item.correctOption) === String(i);
                                                             return `
                                                                 <div class="answer-label ${isCorrectOption ? 'correct-answer-label' : ''}">
                                                                     <span class="mr-2">${String.fromCharCode(65 + i)}.</span>
@@ -1515,33 +1570,33 @@ D. Đáp án D
                                                         }).join('')}
                                                     </div>
                                                     <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(question.correctOption))}. ${question.options[question.correctOption]}
+                                                        <strong>Đáp án đúng:</strong> ${String.fromCharCode(65 + parseInt(item.correctOption))}. ${item.options[item.correctOption]}
                                                     </div>
                                                     <div class="mt-2 text-sm font-medium">
                                                         Điểm: ${isCorrect ? '1' : '0'}/1
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'tf') {
-                                            const correctAnswerText = question.correctAnswer === 'true' ? 'Đúng' : 'Sai';
+                                        } else if (item.type === 'tf') {
+                                            const correctAnswerText = item.correctAnswer === 'true' ? 'Đúng' : 'Sai';
                                             const studentAnswerText = studentAnswer === 'true' ? 'Đúng' : 'Sai';
                                             
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="space-y-2 mb-3">
-                                                        <div class="answer-label ${question.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
+                                                        <div class="answer-label ${item.correctAnswer === 'true' ? 'correct-answer-label' : ''}">
                                                             <span>Đúng</span>
                                                             ${studentAnswer === 'true' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'true' && question.correctAnswer !== 'true' ? 
+                                                            ${studentAnswer === 'true' && item.correctAnswer !== 'true' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
-                                                        <div class="answer-label ${question.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
+                                                        <div class="answer-label ${item.correctAnswer === 'false' ? 'correct-answer-label' : ''}">
                                                             <span>Sai</span>
                                                             ${studentAnswer === 'false' ? 
                                                                 `<span class="student-answer ml-2">(Đáp án HS)</span>` : ''}
-                                                            ${studentAnswer === 'false' && question.correctAnswer !== 'false' ? 
+                                                            ${studentAnswer === 'false' && item.correctAnswer !== 'false' ? 
                                                                 `<i class="fas fa-times incorrect-icon ml-2"></i>` : ''}
                                                         </div>
                                                     </div>
@@ -1553,16 +1608,16 @@ D. Đáp án D
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'sa') {
+                                        } else if (item.type === 'sa') {
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="mb-3">
                                                         <p class="font-bold">Trả lời của thí sinh:</p>
                                                         <p class="bg-white p-2 border border-gray-300 rounded">${studentAnswer || 'Không trả lời'}</p>
                                                     </div>
                                                     <div class="text-sm text-gray-600">
-                                                        <strong>Đáp án đúng:</strong> ${question.correctAnswer}
+                                                        <strong>Đáp án đúng:</strong> ${item.correctAnswer}
                                                     </div>
                                                     ${!isCorrect ? 
                                                         `<i class="fas fa-times incorrect-icon mt-2"></i>` : ''
@@ -1572,11 +1627,11 @@ D. Đáp án D
                                                     </div>
                                                 </div>
                                             `;
-                                        } else if (question.type === 'essay') {
+                                        } else if (item.type === 'essay') {
                                             const manualScore = result.answers[index]?.manualScore || 0;
                                             questionHtml = `
                                                 <div class="mb-4">
-                                                    <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                                                    <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                                                     <div class="mb-3">
                                                         <p class="font-bold">Trả lời của thí sinh:</p>
                                                         <p class="bg-white p-2 border border-gray-300 rounded whitespace-pre-line">${studentAnswer || 'Không trả lời'}</p>
@@ -1609,10 +1664,9 @@ D. Đáp án D
                 });
         }
 
-        // Check if answer is correct (FIXED VERSION)
+        // Check if answer is correct
         function checkAnswerCorrect(question, answer) {
             if (question.type === 'mcq') {
-                // Chuyển cả hai về string để so sánh
                 return String(answer) === String(question.correctOption);
             } else if (question.type === 'tf') {
                 return answer === question.correctAnswer;
@@ -1715,47 +1769,22 @@ D. Đáp án D
                 return;
             }
             
-            // Collect manual scores for essay questions
-            const scoreInputs = document.querySelectorAll('.score-input');
-            const manualScores = {};
-            
-            scoreInputs.forEach(input => {
-                const index = parseInt(input.getAttribute('data-index'));
-                const score = parseFloat(input.value) || 0;
-                manualScores[index] = score;
-            });
-            
             // Update result in Firestore
-            const updateData = {
+            db.collection('exam_results').doc(currentResultId).update({
                 status: 'graded',
                 finalScore: totalScore,
                 gradedAt: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            
-            // Add manual scores to answers
-            if (currentExamResult.answers) {
-                currentExamResult.answers.forEach((answer, index) => {
-                    if (currentExamData.questions[index].type === 'essay') {
-                        if (manualScores[index] !== undefined) {
-                            answer.manualScore = manualScores[index];
-                        }
-                    }
-                });
-                
-                updateData.answers = currentExamResult.answers;
-            }
-            
-            db.collection('exam_results').doc(currentResultId).update(updateData)
-                .then(() => {
-                    alert('Đã lưu kết quả chấm bài thành công');
-                    resultModal.classList.add('hidden');
-                    loadResults();
-                    loadStatistics();
-                })
-                .catch(error => {
-                    console.error('Error saving exam result:', error);
-                    alert('Có lỗi xảy ra khi lưu kết quả');
-                });
+            })
+            .then(() => {
+                alert('Đã lưu kết quả chấm bài thành công');
+                resultModal.classList.add('hidden');
+                loadResults();
+                loadStatistics();
+            })
+            .catch(error => {
+                console.error('Error saving exam result:', error);
+                alert('Có lỗi xảy ra khi lưu kết quả');
+            });
         }
 
         // Delete exam
@@ -1875,26 +1904,46 @@ D. Đáp án D
             exportExamResults(examId);
         });
 
+        // Add material to exam form
+        function addMaterial(content = '') {
+            questionCount++;
+            const materialId = `material-${questionCount}`;
+            
+            const materialHtml = `
+                <div class="material-block p-4 rounded-lg border border-gray-200" data-type="material" data-id="${materialId}">
+                    <div class="flex justify-between items-start mb-2">
+                        <label class="block text-sm font-medium text-gray-700">Tư liệu #${questionCount}</label>
+                        <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <textarea class="material-content w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Nhập nội dung tư liệu" rows="4">${content}</textarea>
+                </div>
+            `;
+            
+            const materialElement = document.createElement('div');
+            materialElement.innerHTML = materialHtml;
+            questionsContainer.appendChild(materialElement);
+            
+            // Add event listener for delete button
+            const deleteBtn = materialElement.querySelector('.delete-question');
+            deleteBtn.addEventListener('click', () => {
+                materialElement.remove();
+            });
+        }
+
         // Add question to exam form
-        function addQuestion(type) {
+        function addQuestion(type, questionData = null) {
             questionCount++;
             const questionId = `question-${questionCount}`;
             
             let questionHtml = '';
             
-            if (type === 'material') {
-                questionHtml = `
-                    <div class="question-block material-block p-4 rounded-lg border border-gray-200" data-type="material" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Tư liệu #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="material-content w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Nhập nội dung tư liệu" rows="4" required></textarea>
-                    </div>
-                `;
-            } else if (type === 'mcq') {
+            if (type === 'mcq') {
+                const questionText = questionData ? questionData.question : '';
+                const options = questionData && questionData.options ? questionData.options : ['', ''];
+                const correctOption = questionData ? questionData.correctOption : '0';
+                
                 questionHtml = `
                     <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="mcq" data-id="${questionId}">
                         <div class="flex justify-between items-start mb-2">
@@ -1903,17 +1952,15 @@ D. Đáp án D
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required></textarea>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionText}</textarea>
                         
                         <div class="options-container space-y-2 mb-3">
-                            <div class="flex items-center">
-                                <input type="radio" name="correct-option" value="0" class="mr-2" required>
-                                <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 1" required>
-                            </div>
-                            <div class="flex items-center">
-                                <input type="radio" name="correct-option" value="1" class="mr-2">
-                                <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 2" required>
-                            </div>
+                            ${options.map((option, i) => `
+                                <div class="flex items-center">
+                                    <input type="radio" name="correct-option" value="${i}" class="mr-2" ${correctOption === String(i) ? 'checked' : ''} required>
+                                    <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn ${i+1}" value="${option}" required>
+                                </div>
+                            `).join('')}
                         </div>
                         
                         <button type="button" class="add-option text-blue-600 text-sm hover:text-blue-800">
@@ -1922,6 +1969,9 @@ D. Đáp án D
                     </div>
                 `;
             } else if (type === 'tf') {
+                const questionText = questionData ? questionData.question : '';
+                const correctAnswer = questionData ? questionData.correctAnswer : 'true';
+                
                 questionHtml = `
                     <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="tf" data-id="${questionId}">
                         <div class="flex justify-between items-start mb-2">
@@ -1930,21 +1980,24 @@ D. Đáp án D
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required></textarea>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionText}</textarea>
                         
                         <div class="flex space-x-4">
                             <label class="inline-flex items-center">
-                                <input type="radio" name="tf-answer" value="true" class="mr-2" required>
+                                <input type="radio" name="tf-answer" value="true" class="mr-2" ${correctAnswer === 'true' ? 'checked' : ''} required>
                                 <span>Đúng</span>
                             </label>
                             <label class="inline-flex items-center">
-                                <input type="radio" name="tf-answer" value="false" class="mr-2">
+                                <input type="radio" name="tf-answer" value="false" class="mr-2" ${correctAnswer === 'false' ? 'checked' : ''}>
                                 <span>Sai</span>
                             </label>
                         </div>
                     </div>
                 `;
             } else if (type === 'sa') {
+                const questionText = questionData ? questionData.question : '';
+                const correctAnswer = questionData ? questionData.correctAnswer : '';
+                
                 questionHtml = `
                     <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="sa" data-id="${questionId}">
                         <div class="flex justify-between items-start mb-2">
@@ -1953,15 +2006,17 @@ D. Đáp án D
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required></textarea>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionText}</textarea>
                         
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Câu trả lời đúng</label>
-                            <input type="text" class="sa-answer w-full px-3 py-2 border border-gray-300 rounded-md" required>
+                            <input type="text" class="sa-answer w-full px-3 py-2 border border-gray-300 rounded-md" value="${correctAnswer}" required>
                         </div>
                     </div>
                 `;
             } else if (type === 'essay') {
+                const questionText = questionData ? questionData.question : '';
+                
                 questionHtml = `
                     <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="essay" data-id="${questionId}">
                         <div class="flex justify-between items-start mb-2">
@@ -1970,7 +2025,7 @@ D. Đáp án D
                                 <i class="fas fa-times"></i>
                             </button>
                         </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required></textarea>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionText}</textarea>
                     </div>
                 `;
             }
@@ -2008,78 +2063,40 @@ D. Đáp án D
             }
         }
 
-        // Process text content
-        async function processTextContent() {
-            const textContent = textContentInput.value.trim();
-            if (!textContent) {
-                showImportError('Vui lòng nhập nội dung đề thi');
-                return;
-            }
-            
-            // Show loading status
-            importStatus.classList.remove('hidden');
-            importError.classList.add('hidden');
-            processTextBtn.disabled = true;
-            
+        // Generate exam from text using Gemini API
+        async function generateExamFromText(text) {
             try {
-                // Call Gemini API
-                const examData = await callGeminiAPI(textContent);
+                const prompt = `
+                Tôi muốn bạn chuyển đổi văn bản sau thành một đề thi với các câu hỏi và tư liệu. Hãy phân tích văn bản và tạo ra:
+                1. Các tư liệu (nếu có đoạn văn bản dài cần làm tư liệu cho nhiều câu hỏi)
+                2. Các câu hỏi từ văn bản (trắc nghiệm, đúng/sai, trả lời ngắn, tự luận)
                 
-                // Fill the exam form with extracted data
-                fillExamForm(examData);
+                Đặc biệt chú ý: Nếu văn bản có dạng điền vào chỗ trống với các lựa chọn A, B, C, D, hãy tạo:
+                - Một tư liệu chứa toàn bộ nội dung văn bản với các chỗ trống
+                - Các câu hỏi trắc nghiệm cho từng chỗ trống với các lựa chọn tương ứng
                 
-                // Close modal
-                importTextModal.classList.add('hidden');
-                importStatus.classList.add('hidden');
-                processTextBtn.disabled = false;
-                
-            } catch (error) {
-                console.error('Error processing text content:', error);
-                showImportError('Có lỗi xảy ra khi xử lý văn bản: ' + error.message);
-                importStatus.classList.add('hidden');
-                processTextBtn.disabled = false;
-            }
-        }
-
-        // Call Gemini API
-        async function callGeminiAPI(textContent) {
-            const prompt = `
-            Bạn là trợ lý chuyên phân tích và chuyển đổi đề thi từ văn bản thuần túy sang định dạng JSON. 
-            Hãy phân tích nội dung và trích xuất thông tin đề thi theo cấu trúc sau:
-            
-            {
-              "name": "Tên đề thi",
-              "time": Thời gian làm bài (phút),
-              "questions": [
+                Trả về kết quả dưới dạng JSON với cấu trúc:
                 {
-                  "type": "material|mcq|tf|sa|essay",
-                  "content": "Nội dung tư liệu", // Chỉ cho loại material
-                  "question": "Nội dung câu hỏi", // Cho các loại khác
-                  "options": ["Lựa chọn 1", "Lựa chọn 2", ...] // Chỉ cho loại mcq
-                  "correctOption": "0", // Chỉ cho loại mcq (index của đáp án đúng)
-                  "correctAnswer": "Đáp án đúng" // Cho loại tf, sa
-                },
-                ...
-              ]
-            }
-            
-            Quy tắc xác định loại câu hỏi:
-            - material (tư liệu): Nội dung tư liệu, đoạn văn, bài đọc, không phải câu hỏi
-            - mcq (trắc nghiệm): Câu hỏi có nhiều lựa chọn (A, B, C, D...)
-            - tf (đúng/sai): Câu hỏi chỉ có 2 lựa chọn Đúng/Sai
-            - sa (trả lời ngắn): Câu hỏi yêu cầu trả lời ngắn (1-2 từ)
-            - essay (tự luận): Câu hỏi yêu cầu trả lời dài, giải thích, phân tích
-            
-            Đặc biệt chú ý: Nếu gặp đoạn văn có chỗ trống (ví dụ: (1)________) và các lựa chọn điền vào chỗ trống,
-            hãy tạo một tư liệu chứa toàn bộ nội dung và các câu hỏi trắc nghiệm/trả lời ngắn tương ứng.
-            
-            Hãy phân tích kỹ nội dung và trả về kết quả dưới dạng JSON hợp lệ.
-            
-            Nội dung đề thi:
-            ${textContent}
-            `;
-
-            try {
+                  "materials": [
+                    {
+                      "content": "Nội dung tư liệu"
+                    }
+                  ],
+                  "questions": [
+                    {
+                      "type": "mcq|tf|sa|essay",
+                      "question": "Nội dung câu hỏi",
+                      "options": ["Lựa chọn A", "Lựa chọn B", ...] // Chỉ cho loại mcq
+                      "correctOption": "0", // Chỉ cho loại mcq (index của option đúng)
+                      "correctAnswer": "Đáp án đúng" // Cho loại tf và sa
+                    }
+                  ]
+                }
+                
+                Văn bản cần xử lý:
+                ${text}
+                `;
+                
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`, {
                     method: 'POST',
                     headers: {
@@ -2087,224 +2104,32 @@ D. Đáp án D
                     },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [
-                                { 
-                                    text: prompt 
-                                }
-                            ]
-                        }],
-                        generationConfig: {
-                            temperature: 0.1,
-                            maxOutputTokens: 2048,
-                        }
+                            parts: [{
+                                text: prompt
+                            }]
+                        }]
                     })
                 });
-
+                
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error?.message || 'Lỗi khi gọi Gemini API');
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
-
+                
                 const data = await response.json();
                 const responseText = data.candidates[0].content.parts[0].text;
                 
-                // Extract JSON from response (might be wrapped in markdown code blocks)
-                let jsonStr = responseText;
-                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/```\n([\s\S]*?)\n```/);
-                if (jsonMatch) {
-                    jsonStr = jsonMatch[1];
+                // Extract JSON from response
+                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/{[\s\S]*}/);
+                if (!jsonMatch) {
+                    throw new Error('Không tìm thấy dữ liệu JSON trong phản hồi');
                 }
                 
+                const jsonStr = jsonMatch[1] || jsonMatch[0];
                 return JSON.parse(jsonStr);
             } catch (error) {
                 console.error('Error calling Gemini API:', error);
-                throw new Error('Không thể xử lý văn bản: ' + error.message);
+                throw new Error('Không thể tạo đề thi từ văn bản: ' + error.message);
             }
-        }
-
-        // Fill exam form with extracted data
-        function fillExamForm(examData) {
-            // Fill basic info
-            document.getElementById('exam-name').value = examData.name || 'Đề thi từ văn bản';
-            document.getElementById('exam-time').value = examData.time || 45;
-            
-            // Clear existing questions
-            questionsContainer.innerHTML = '';
-            questionCount = 0;
-            
-            // Add questions
-            if (examData.questions && Array.isArray(examData.questions)) {
-                examData.questions.forEach(q => {
-                    addQuestionFromData(q);
-                });
-            }
-        }
-
-        // Add question from extracted data
-        function addQuestionFromData(questionData) {
-            questionCount++;
-            const questionId = `question-${questionCount}`;
-            
-            let questionHtml = '';
-            
-            if (questionData.type === 'material') {
-                questionHtml = `
-                    <div class="question-block material-block p-4 rounded-lg border border-gray-200" data-type="material" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Tư liệu #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="material-content w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Nhập nội dung tư liệu" rows="4" required>${questionData.content || ''}</textarea>
-                    </div>
-                `;
-            } else if (questionData.type === 'mcq') {
-                questionHtml = `
-                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="mcq" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu hỏi trắc nghiệm #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
-                        
-                        <div class="options-container space-y-2 mb-3">`;
-                
-                // Add options
-                if (questionData.options && Array.isArray(questionData.options)) {
-                    questionData.options.forEach((option, index) => {
-                        const isChecked = questionData.correctOption === index.toString();
-                        questionHtml += `
-                            <div class="flex items-center">
-                                <input type="radio" name="correct-option" value="${index}" class="mr-2" ${isChecked ? 'checked' : ''} required>
-                                <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn ${index + 1}" value="${option}" required>
-                            </div>`;
-                    });
-                } else {
-                    // Default options if none provided
-                    questionHtml += `
-                        <div class="flex items-center">
-                            <input type="radio" name="correct-option" value="0" class="mr-2" required>
-                            <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 1" required>
-                        </div>
-                        <div class="flex items-center">
-                            <input type="radio" name="correct-option" value="1" class="mr-2">
-                            <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 2" required>
-                        </div>`;
-                }
-                
-                questionHtml += `
-                        </div>
-                        
-                        <button type="button" class="add-option text-blue-600 text-sm hover:text-blue-800">
-                            <i class="fas fa-plus mr-1"></i>Thêm lựa chọn
-                        </button>
-                    </div>`;
-            } else if (questionData.type === 'tf') {
-                const trueChecked = questionData.correctAnswer === 'true';
-                const falseChecked = questionData.correctAnswer === 'false';
-                
-                questionHtml = `
-                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="tf" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu hỏi đúng/sai #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
-                        
-                        <div class="flex space-x-4">
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="tf-answer" value="true" class="mr-2" ${trueChecked ? 'checked' : ''} required>
-                                <span>Đúng</span>
-                            </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="tf-answer" value="false" class="mr-2" ${falseChecked ? 'checked' : ''}>
-                                <span>Sai</span>
-                            </label>
-                        </div>
-                    </div>`;
-            } else if (questionData.type === 'sa') {
-                questionHtml = `
-                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="sa" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu hỏi trả lời ngắn #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
-                        
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Câu trả lời đúng</label>
-                            <input type="text" class="sa-answer w-full px-3 py-2 border border-gray-300 rounded-md" value="${questionData.correctAnswer || ''}" required>
-                        </div>
-                    </div>`;
-            } else if (questionData.type === 'essay') {
-                questionHtml = `
-                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="essay" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu hỏi tự luận #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
-                    </div>`;
-            } else {
-                // Default to essay if type is unknown
-                questionHtml = `
-                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="essay" data-id="${questionId}">
-                        <div class="flex justify-between items-start mb-2">
-                            <label class="block text-sm font-medium text-gray-700">Câu hỏi #${questionCount}</label>
-                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
-                    </div>`;
-            }
-            
-            const questionElement = document.createElement('div');
-            questionElement.innerHTML = questionHtml;
-            questionsContainer.appendChild(questionElement);
-            
-            // Add event listeners
-            const deleteBtn = questionElement.querySelector('.delete-question');
-            deleteBtn.addEventListener('click', () => {
-                questionElement.remove();
-            });
-            
-            if (questionData.type === 'mcq') {
-                const addOptionBtn = questionElement.querySelector('.add-option');
-                const optionsContainer = questionElement.querySelector('.options-container');
-                
-                addOptionBtn.addEventListener('click', () => {
-                    const optionCount = optionsContainer.children.length;
-                    if (optionCount >= 5) {
-                        alert('Tối đa 5 lựa chọn');
-                        return;
-                    }
-                    
-                    const optionElement = document.createElement('div');
-                    optionElement.className = 'flex items-center';
-                    optionElement.innerHTML = `
-                        <input type="radio" name="correct-option" value="${optionCount}" class="mr-2">
-                        <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn ${optionCount + 1}" required>
-                    `;
-                    
-                    optionsContainer.appendChild(optionElement);
-                });
-            }
-        }
-
-        // Show import error
-        function showImportError(message) {
-            importError.textContent = message;
-            importError.classList.remove('hidden');
         }
 
         // Generate exam code
@@ -2316,17 +2141,6 @@ D. Đáp án D
             }
             return result;
         }
-
-        // Toggle manual scoring mode
-        manualScoringMode.addEventListener('change', () => {
-            if (manualScoringMode.checked) {
-                resultModal.classList.add('manual-input-mode');
-                resultTotalScoreInput.disabled = false;
-            } else {
-                resultModal.classList.remove('manual-input-mode');
-                resultTotalScoreInput.disabled = true;
-            }
-        });
 
         // Event listeners for modals
         closeResultModal.addEventListener('click', () => {
@@ -2363,9 +2177,6 @@ D. Đáp án D
             }
             if (e.target === exportExamModal) {
                 exportExamModal.classList.add('hidden');
-            }
-            if (e.target === importTextModal) {
-                importTextModal.classList.add('hidden');
             }
         });
     </script>
