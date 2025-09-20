@@ -169,6 +169,18 @@
             border-bottom-color: #7c3aed;
             color: #7c3aed;
         }
+        .loader {
+            border-top-color: #4f46e5;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .manual-input-mode .score-input {
+            border-color: #4f46e5;
+            background-color: #f5f3ff;
+        }
     </style>
 </head>
 <body>
@@ -387,18 +399,21 @@
                         <!-- Questions will be added here -->
                     </div>
                     
-                    <div class="mt-4 flex space-x-2">
-                        <button type="button" id="add-mcq" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200">
+                    <div class="mt-4 flex space-x-2 flex-wrap">
+                        <button type="button" id="add-mcq" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-sm hover:bg-blue-200 mb-2">
                             <i class="fas fa-list-ol mr-1"></i>Trắc nghiệm
                         </button>
-                        <button type="button" id="add-tf" class="bg-green-100 text-green-700 px-3 py-1 rounded text-sm hover:bg-green-200">
+                        <button type="button" id="add-tf" class="bg-green-100 text-green-700 px-3 py-1 rounded text-sm hover:bg-green-200 mb-2">
                             <i class="fas fa-check-circle mr-1"></i>Đúng/Sai
                         </button>
-                        <button type="button" id="add-sa" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-200">
+                        <button type="button" id="add-sa" class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded text-sm hover:bg-yellow-200 mb-2">
                             <i class="fas fa-comment-alt mr-1"></i>Trả lời ngắn
                         </button>
-                        <button type="button" id="add-essay" class="bg-purple-100 text-purple-700 px-3 py-1 rounded text-sm hover:bg-purple-200">
+                        <button type="button" id="add-essay" class="bg-purple-100 text-purple-700 px-3 py-1 rounded text-sm hover:bg-purple-200 mb-2">
                             <i class="fas fa-align-left mr-1"></i>Tự luận
+                        </button>
+                        <button type="button" id="import-text" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-sm hover:bg-indigo-200 mb-2">
+                            <i class="fas fa-file-alt mr-1"></i>Nhập từ văn bản
                         </button>
                     </div>
                 </div>
@@ -412,6 +427,54 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Import Text Modal -->
+    <div id="import-text-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Nhập đề thi từ văn bản</h3>
+                <button id="close-import-modal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Dán nội dung đề thi</label>
+                <textarea id="text-content" rows="10" class="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Dán nội dung đề thi ở đây. Mỗi câu hỏi trên một dòng, định dạng:
+1. Câu hỏi trắc nghiệm?
+A. Đáp án A
+B. Đáp án B
+C. Đáp án C
+D. Đáp án D
+Đáp án: A
+
+2. Câu hỏi đúng/sai?
+Đáp án: Đúng
+
+3. Câu hỏi trả lời ngắn?
+Đáp án: Nội dung trả lời"></textarea>
+                <p class="text-xs text-gray-500 mt-1">Hỗ trợ định dạng văn bản thuần túy. Sử dụng Gemini API để phân tích cấu trúc đề thi.</p>
+            </div>
+            
+            <div id="import-status" class="mb-4 hidden">
+                <div class="flex items-center">
+                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-6 w-6 mr-2"></div>
+                    <span>Đang xử lý văn bản...</span>
+                </div>
+            </div>
+            
+            <div id="import-error" class="mb-4 p-3 bg-red-100 text-red-700 rounded hidden"></div>
+            
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-import" class="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50">
+                    Hủy bỏ
+                </button>
+                <button id="process-text" class="btn-primary px-4 py-2 rounded-md">
+                    <i class="fas fa-cog mr-2"></i>Xử lý
+                </button>
+            </div>
         </div>
     </div>
 
@@ -476,7 +539,12 @@
                             <span class="ml-2">/ <span id="result-max-score">0</span></span>
                         </div>
                     </div>
-                    <p class="text-xl font-bold hidden"><span id="result-total-score">0</span>/<span id="result-max-score">0</span></p>
+                    <div>
+                        <label class="inline-flex items-center">
+                            <input type="checkbox" id="manual-scoring-mode" class="mr-2">
+                            <span>Chế độ nhập điểm thủ công</span>
+                        </label>
+                    </div>
                 </div>
             </div>
             
@@ -557,6 +625,12 @@
             measurementId: "G-4EDKFS0CY6"
         };
 
+        // Gemini API configuration
+        const GEMINI_CONFIG = {
+            apiKey: 'AIzaSyAQMglgiKEHY8XznNf9ZIdjYMnKgH9DhJg',
+            model: 'gemini-2.0-flash-thinking-exp-01-21'
+        };
+
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
@@ -590,6 +664,7 @@
         const confirmExport = document.getElementById('confirm-export');
         const exportExamSelect = document.getElementById('export-exam-select');
         const resultTotalScoreInput = document.getElementById('result-total-score-input');
+        const manualScoringMode = document.getElementById('manual-scoring-mode');
         
         // Create exam modal elements
         const createExamBtn = document.getElementById('create-exam-btn');
@@ -608,6 +683,16 @@
         const modalExamName = document.getElementById('modal-exam-name');
         const modalExamCode = document.getElementById('modal-exam-code');
         const qrcodeDiv = document.getElementById('qrcode');
+
+        // Text import elements
+        const importTextBtn = document.getElementById('import-text');
+        const importTextModal = document.getElementById('import-text-modal');
+        const closeImportModalBtn = document.getElementById('close-import-modal');
+        const cancelImportBtn = document.getElementById('cancel-import');
+        const processTextBtn = document.getElementById('process-text');
+        const textContentInput = document.getElementById('text-content');
+        const importStatus = document.getElementById('import-status');
+        const importError = document.getElementById('import-error');
 
         // Current user and exam data
         let currentUser = null;
@@ -695,6 +780,21 @@
         addTfBtn.addEventListener('click', () => addQuestion('tf'));
         addSaBtn.addEventListener('click', () => addQuestion('sa'));
         addEssayBtn.addEventListener('click', () => addQuestion('essay'));
+
+        // Text import functionality
+        importTextBtn.addEventListener('click', () => {
+            importTextModal.classList.remove('hidden');
+        });
+
+        closeImportModalBtn.addEventListener('click', () => {
+            importTextModal.classList.add('hidden');
+        });
+
+        cancelImportBtn.addEventListener('click', () => {
+            importTextModal.classList.add('hidden');
+        });
+
+        processTextBtn.addEventListener('click', processTextContent);
 
         // Submit exam form
         examForm.addEventListener('submit', e => {
@@ -1576,22 +1676,47 @@
                 return;
             }
             
+            // Collect manual scores for essay questions
+            const scoreInputs = document.querySelectorAll('.score-input');
+            const manualScores = {};
+            
+            scoreInputs.forEach(input => {
+                const index = parseInt(input.getAttribute('data-index'));
+                const score = parseFloat(input.value) || 0;
+                manualScores[index] = score;
+            });
+            
             // Update result in Firestore
-            db.collection('exam_results').doc(currentResultId).update({
+            const updateData = {
                 status: 'graded',
                 finalScore: totalScore,
                 gradedAt: firebase.firestore.FieldValue.serverTimestamp()
-            })
-            .then(() => {
-                alert('Đã lưu kết quả chấm bài thành công');
-                resultModal.classList.add('hidden');
-                loadResults();
-                loadStatistics();
-            })
-            .catch(error => {
-                console.error('Error saving exam result:', error);
-                alert('Có lỗi xảy ra khi lưu kết quả');
-            });
+            };
+            
+            // Add manual scores to answers
+            if (currentExamResult.answers) {
+                currentExamResult.answers.forEach((answer, index) => {
+                    if (currentExamData.questions[index].type === 'essay') {
+                        if (manualScores[index] !== undefined) {
+                            answer.manualScore = manualScores[index];
+                        }
+                    }
+                });
+                
+                updateData.answers = currentExamResult.answers;
+            }
+            
+            db.collection('exam_results').doc(currentResultId).update(updateData)
+                .then(() => {
+                    alert('Đã lưu kết quả chấm bài thành công');
+                    resultModal.classList.add('hidden');
+                    loadResults();
+                    loadStatistics();
+                })
+                .catch(error => {
+                    console.error('Error saving exam result:', error);
+                    alert('Có lỗi xảy ra khi lưu kết quả');
+                });
         }
 
         // Delete exam
@@ -1832,6 +1957,288 @@
             }
         }
 
+        // Process text content
+        async function processTextContent() {
+            const textContent = textContentInput.value.trim();
+            if (!textContent) {
+                showImportError('Vui lòng nhập nội dung đề thi');
+                return;
+            }
+            
+            // Show loading status
+            importStatus.classList.remove('hidden');
+            importError.classList.add('hidden');
+            processTextBtn.disabled = true;
+            
+            try {
+                // Call Gemini API
+                const examData = await callGeminiAPI(textContent);
+                
+                // Fill the exam form with extracted data
+                fillExamForm(examData);
+                
+                // Close modal
+                importTextModal.classList.add('hidden');
+                importStatus.classList.add('hidden');
+                processTextBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Error processing text content:', error);
+                showImportError('Có lỗi xảy ra khi xử lý văn bản: ' + error.message);
+                importStatus.classList.add('hidden');
+                processTextBtn.disabled = false;
+            }
+        }
+
+        // Call Gemini API
+        async function callGeminiAPI(textContent) {
+            const prompt = `
+            Bạn là trợ lý chuyên phân tích và chuyển đổi đề thi từ văn bản thuần túy sang định dạng JSON. 
+            Hãy phân tích nội dung và trích xuất thông tin đề thi theo cấu trúc sau:
+            
+            {
+              "name": "Tên đề thi",
+              "time": Thời gian làm bài (phút),
+              "questions": [
+                {
+                  "type": "mcq|tf|sa|essay",
+                  "question": "Nội dung câu hỏi",
+                  "options": ["Lựa chọn 1", "Lựa chọn 2", ...] // Chỉ cho loại mcq
+                  "correctOption": "0", // Chỉ cho loại mcq (index của đáp án đúng)
+                  "correctAnswer": "Đáp án đúng" // Cho loại tf, sa
+                },
+                ...
+              ]
+            }
+            
+            Quy tắc xác định loại câu hỏi:
+            - mcq (trắc nghiệm): Câu hỏi có nhiều lựa chọn (A, B, C, D...)
+            - tf (đúng/sai): Câu hỏi chỉ có 2 lựa chọn Đúng/Sai
+            - sa (trả lời ngắn): Câu hỏi yêu cầu trả lời ngắn (1-2 từ)
+            - essay (tự luận): Câu hỏi yêu cầu trả lời dài, giải thích, phân tích
+            
+            Hãy phân tích kỹ nội dung và trả về kết quả dưới dạng JSON hợp lệ.
+            
+            Nội dung đề thi:
+            ${textContent}
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_CONFIG.model}:generateContent?key=${GEMINI_CONFIG.apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [
+                                { 
+                                    text: prompt 
+                                }
+                            ]
+                        }],
+                        generationConfig: {
+                            temperature: 0.1,
+                            maxOutputTokens: 2048,
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Lỗi khi gọi Gemini API');
+                }
+
+                const data = await response.json();
+                const responseText = data.candidates[0].content.parts[0].text;
+                
+                // Extract JSON from response (might be wrapped in markdown code blocks)
+                let jsonStr = responseText;
+                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || responseText.match(/```\n([\s\S]*?)\n```/);
+                if (jsonMatch) {
+                    jsonStr = jsonMatch[1];
+                }
+                
+                return JSON.parse(jsonStr);
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                throw new Error('Không thể xử lý văn bản: ' + error.message);
+            }
+        }
+
+        // Fill exam form with extracted data
+        function fillExamForm(examData) {
+            // Fill basic info
+            document.getElementById('exam-name').value = examData.name || 'Đề thi từ văn bản';
+            document.getElementById('exam-time').value = examData.time || 45;
+            
+            // Clear existing questions
+            questionsContainer.innerHTML = '';
+            questionCount = 0;
+            
+            // Add questions
+            if (examData.questions && Array.isArray(examData.questions)) {
+                examData.questions.forEach(q => {
+                    addQuestionFromData(q);
+                });
+            }
+        }
+
+        // Add question from extracted data
+        function addQuestionFromData(questionData) {
+            questionCount++;
+            const questionId = `question-${questionCount}`;
+            
+            let questionHtml = '';
+            
+            if (questionData.type === 'mcq') {
+                questionHtml = `
+                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="mcq" data-id="${questionId}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi trắc nghiệm #${questionCount}</label>
+                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
+                        
+                        <div class="options-container space-y-2 mb-3">`;
+                
+                // Add options
+                if (questionData.options && Array.isArray(questionData.options)) {
+                    questionData.options.forEach((option, index) => {
+                        const isChecked = questionData.correctOption === index.toString();
+                        questionHtml += `
+                            <div class="flex items-center">
+                                <input type="radio" name="correct-option" value="${index}" class="mr-2" ${isChecked ? 'checked' : ''} required>
+                                <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn ${index + 1}" value="${option}" required>
+                            </div>`;
+                    });
+                } else {
+                    // Default options if none provided
+                    questionHtml += `
+                        <div class="flex items-center">
+                            <input type="radio" name="correct-option" value="0" class="mr-2" required>
+                            <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 1" required>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="radio" name="correct-option" value="1" class="mr-2">
+                            <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn 2" required>
+                        </div>`;
+                }
+                
+                questionHtml += `
+                        </div>
+                        
+                        <button type="button" class="add-option text-blue-600 text-sm hover:text-blue-800">
+                            <i class="fas fa-plus mr-1"></i>Thêm lựa chọn
+                        </button>
+                    </div>`;
+            } else if (questionData.type === 'tf') {
+                const trueChecked = questionData.correctAnswer === 'true';
+                const falseChecked = questionData.correctAnswer === 'false';
+                
+                questionHtml = `
+                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="tf" data-id="${questionId}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi đúng/sai #${questionCount}</label>
+                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
+                        
+                        <div class="flex space-x-4">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="tf-answer" value="true" class="mr-2" ${trueChecked ? 'checked' : ''} required>
+                                <span>Đúng</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="tf-answer" value="false" class="mr-2" ${falseChecked ? 'checked' : ''}>
+                                <span>Sai</span>
+                            </label>
+                        </div>
+                    </div>`;
+            } else if (questionData.type === 'sa') {
+                questionHtml = `
+                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="sa" data-id="${questionId}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi trả lời ngắn #${questionCount}</label>
+                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Câu trả lời đúng</label>
+                            <input type="text" class="sa-answer w-full px-3 py-2 border border-gray-300 rounded-md" value="${questionData.correctAnswer || ''}" required>
+                        </div>
+                    </div>`;
+            } else if (questionData.type === 'essay') {
+                questionHtml = `
+                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="essay" data-id="${questionId}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi tự luận #${questionCount}</label>
+                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
+                    </div>`;
+            } else {
+                // Default to essay if type is unknown
+                questionHtml = `
+                    <div class="question-block bg-gray-50 p-4 rounded-lg border border-gray-200" data-type="essay" data-id="${questionId}">
+                        <div class="flex justify-between items-start mb-2">
+                            <label class="block text-sm font-medium text-gray-700">Câu hỏi #${questionCount}</label>
+                            <button type="button" class="delete-question text-red-500 hover:text-red-700">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <textarea class="question-text w-full px-3 py-2 border border-gray-300 rounded-md mb-3" placeholder="Nhập câu hỏi" required>${questionData.question || ''}</textarea>
+                    </div>`;
+            }
+            
+            const questionElement = document.createElement('div');
+            questionElement.innerHTML = questionHtml;
+            questionsContainer.appendChild(questionElement);
+            
+            // Add event listeners
+            const deleteBtn = questionElement.querySelector('.delete-question');
+            deleteBtn.addEventListener('click', () => {
+                questionElement.remove();
+            });
+            
+            if (questionData.type === 'mcq') {
+                const addOptionBtn = questionElement.querySelector('.add-option');
+                const optionsContainer = questionElement.querySelector('.options-container');
+                
+                addOptionBtn.addEventListener('click', () => {
+                    const optionCount = optionsContainer.children.length;
+                    if (optionCount >= 5) {
+                        alert('Tối đa 5 lựa chọn');
+                        return;
+                    }
+                    
+                    const optionElement = document.createElement('div');
+                    optionElement.className = 'flex items-center';
+                    optionElement.innerHTML = `
+                        <input type="radio" name="correct-option" value="${optionCount}" class="mr-2">
+                        <input type="text" class="option-input w-full px-3 py-1 border border-gray-300 rounded-md" placeholder="Lựa chọn ${optionCount + 1}" required>
+                    `;
+                    
+                    optionsContainer.appendChild(optionElement);
+                });
+            }
+        }
+
+        // Show import error
+        function showImportError(message) {
+            importError.textContent = message;
+            importError.classList.remove('hidden');
+        }
+
         // Generate exam code
         function generateExamCode() {
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1841,6 +2248,17 @@
             }
             return result;
         }
+
+        // Toggle manual scoring mode
+        manualScoringMode.addEventListener('change', () => {
+            if (manualScoringMode.checked) {
+                resultModal.classList.add('manual-input-mode');
+                resultTotalScoreInput.disabled = false;
+            } else {
+                resultModal.classList.remove('manual-input-mode');
+                resultTotalScoreInput.disabled = true;
+            }
+        });
 
         // Event listeners for modals
         closeResultModal.addEventListener('click', () => {
@@ -1878,8 +2296,10 @@
             if (e.target === exportExamModal) {
                 exportExamModal.classList.add('hidden');
             }
+            if (e.target === importTextModal) {
+                importTextModal.classList.add('hidden');
+            }
         });
     </script>
 </body>
 </html>
-
