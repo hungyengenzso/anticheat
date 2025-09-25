@@ -312,6 +312,13 @@
             height: 100%;
             object-fit: cover;
         }
+        .material-block {
+            background-color: #f0f9ff;
+            border-left: 4px solid #0ea5e9;
+            padding: 16px;
+            margin: 16px 0;
+            border-radius: 8px;
+        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -319,7 +326,7 @@
     </style>
 </head>
 <body>
-    <!-- Navigation - Giống code 1 -->
+    <!-- Navigation -->
     <nav class="nav-gradient shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4">
             <div class="flex justify-between items-center py-4">
@@ -337,7 +344,7 @@
                     <a href="exam.html" class="px-4 py-2 active-menu-item">Thi trực tuyến</a>
                     <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="login-link">Đăng nhập</a>
                     <a href="register.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
                     <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
@@ -354,7 +361,7 @@
                     <a href="exam.html" class="block px-3 py-2 active-menu-item">Thi trực tuyến</a>
                     <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-login-link">Đăng nhập</a>
                     <a href="register.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-exam-management-link">Quản lý đề thi</a>
                     <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-logout-link">Đăng xuất</a>
                 </div>
             </div>
@@ -844,7 +851,11 @@
             
             examNameEl.textContent = currentExam.name;
             examDurationEl.textContent = `${currentExam.time} phút`;
-            examQuestionsCountEl.textContent = currentExam.questions.length;
+            
+            // Calculate number of questions (excluding materials)
+            const questionCount = currentExam.items ? 
+                currentExam.items.filter(item => item.type !== 'material').length : 0;
+            examQuestionsCountEl.textContent = questionCount;
             
             // Set timer
             timeLeft = currentExam.time * 60;
@@ -1533,32 +1544,53 @@
             }
         }
 
-        // Load questions from exam data
+        // Load questions from exam data - ĐÃ SỬA LỖI
         function loadQuestions() {
             questionsContainer.innerHTML = '';
             
-            currentExam.questions.forEach((question, index) => {
+            if (!currentExam || !currentExam.items) {
+                questionsContainer.innerHTML = '<div class="text-center p-4 text-red-500">Không có câu hỏi nào trong đề thi</div>';
+                return;
+            }
+            
+            let questionIndex = 0;
+            
+            currentExam.items.forEach((item, index) => {
+                // Skip materials (only show questions)
+                if (item.type === 'material') {
+                    // Add material as a reference block
+                    const materialEl = document.createElement('div');
+                    materialEl.className = 'material-block';
+                    materialEl.innerHTML = `
+                        <h4 class="font-medium text-blue-700 mb-2">Tư liệu tham khảo:</h4>
+                        <div class="text-gray-700 whitespace-pre-line">${item.content}</div>
+                    `;
+                    questionsContainer.appendChild(materialEl);
+                    return;
+                }
+                
+                questionIndex++;
                 const questionEl = document.createElement('div');
                 questionEl.className = 'question-block bg-white shadow rounded-lg p-6 card';
                 
-                if (question.type === 'mcq') {
+                if (item.type === 'mcq') {
                     questionEl.innerHTML = `
                         <div class="mb-4">
-                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                            <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                             <div class="space-y-2">
-                                ${question.options.map((option, i) => `
+                                ${item.options.map((option, i) => `
                                     <label class="flex items-center">
                                         <input type="radio" name="q${index}" value="${i}" class="mr-2">
-                                        ${option}
+                                        ${String.fromCharCode(65 + i)}. ${option}
                                     </label>
                                 `).join('')}
                             </div>
                         </div>
                     `;
-                } else if (question.type === 'tf') {
+                } else if (item.type === 'tf') {
                     questionEl.innerHTML = `
                         <div class="mb-4">
-                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                            <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                             <div class="space-y-2">
                                 <label class="flex items-center">
                                     <input type="radio" name="q${index}" value="true" class="mr-2">
@@ -1571,17 +1603,17 @@
                             </div>
                         </div>
                     `;
-                } else if (question.type === 'sa') {
+                } else if (item.type === 'sa') {
                     questionEl.innerHTML = `
                         <div class="mb-4">
-                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                            <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                             <input type="text" name="q${index}" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                         </div>
                     `;
-                } else if (question.type === 'essay') {
+                } else if (item.type === 'essay') {
                     questionEl.innerHTML = `
                         <div class="mb-4">
-                            <h3 class="text-lg font-medium mb-2">Câu ${index + 1}: ${question.question}</h3>
+                            <h3 class="text-lg font-medium mb-2">Câu ${questionIndex}: ${item.question}</h3>
                             <textarea name="q${index}" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="4"></textarea>
                         </div>
                     `;
@@ -1687,12 +1719,19 @@
             const answers = [];
             const formData = new FormData(examForm);
             
-            currentExam.questions.forEach((question, index) => {
-                const answer = formData.get(`q${index}`);
-                answers.push({
-                    answer: answer || '',
-                    manualScore: question.type === 'essay' ? null : 0
-                });
+            // Chỉ lấy câu trả lời cho các câu hỏi (bỏ qua materials)
+            let questionCount = 0;
+            currentExam.items.forEach((item, index) => {
+                if (item.type !== 'material') {
+                    const answer = formData.get(`q${index}`);
+                    answers.push({
+                        answer: answer || '',
+                        manualScore: item.type === 'essay' ? null : 0
+                    });
+                    questionCount++;
+                } else {
+                    answers.push(null); // Giữ index cho materials nhưng đặt là null
+                }
             });
             
             const timeTaken = currentExam.time * 60 - timeLeft;
