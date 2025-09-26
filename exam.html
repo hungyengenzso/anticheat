@@ -312,13 +312,6 @@
             height: 100%;
             object-fit: cover;
         }
-        .material-block {
-            background-color: #f0f9ff;
-            border-left: 4px solid #0ea5e9;
-            padding: 16px;
-            margin: 16px 0;
-            border-radius: 8px;
-        }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -667,6 +660,8 @@
         
         const VIOLATION_COOLDOWN = 4000;
         const SCREENSHARE_CHECK_DELAY = 3000; // 3 giây
+        const CLEANUP_INTERVAL = 15000; // Dọn dẹp mỗi 15 giây
+        let cleanupTimer = null;
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -813,7 +808,7 @@
             }
         }
 
-        // Check exam code validity
+        // Check exam code validity - FIXED VERSION
         function checkExamCode() {
             const code = examCodeInput.value.trim();
             
@@ -822,9 +817,15 @@
                     .then(querySnapshot => {
                         if (!querySnapshot.empty) {
                             querySnapshot.forEach(doc => {
+                                const examData = doc.data();
                                 currentExam = {
                                     id: doc.id,
-                                    ...doc.data()
+                                    name: examData.name,
+                                    time: examData.time,
+                                    code: examData.code,
+                                    // FIX: Sử dụng items thay vì questions
+                                    items: examData.items || [],
+                                    createdBy: examData.createdBy
                                 };
                                 startExamBtn.classList.remove('hidden');
                             });
@@ -842,7 +843,7 @@
             }
         }
 
-        // Start exam
+        // Start exam - FIXED VERSION
         function startExam() {
             if (!currentExam) return;
             
@@ -852,7 +853,7 @@
             examNameEl.textContent = currentExam.name;
             examDurationEl.textContent = `${currentExam.time} phút`;
             
-            // Calculate number of questions (excluding materials)
+            // FIX: Đếm số câu hỏi (loại bỏ materials)
             const questionCount = currentExam.items ? 
                 currentExam.items.filter(item => item.type !== 'material').length : 0;
             examQuestionsCountEl.textContent = questionCount;
@@ -1170,6 +1171,7 @@
                 initSpeechRecognition();
                 
                 startAutoScan();
+                startCleanupTask();
                 
                 enterFullscreen();
                 
@@ -1197,9 +1199,22 @@
 
         // Save temporary image to local storage
         function saveTempImage(type, apiKeyIndex, imageData) {
-            const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
-            localStorage.setItem(key, imageData);
-            tempImages[type][apiKeyIndex] = key;
+            try {
+                const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
+                localStorage.setItem(key, imageData);
+                tempImages[type][apiKeyIndex] = key;
+            } catch (error) {
+                console.error('Lỗi khi lưu ảnh tạm:', error);
+                // Nếu lỗi, dọn dẹp và thử lại
+                cleanupOldImages();
+                try {
+                    const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
+                    localStorage.setItem(key, imageData);
+                    tempImages[type][apiKeyIndex] = key;
+                } catch (retryError) {
+                    console.error('Lỗi khi lưu ảnh tạm sau khi dọn dẹp:', retryError);
+                }
+            }
         }
         
         // Remove temporary image from local storage
@@ -1213,8 +1228,70 @@
         
         // Save violation image to local storage
         function saveViolationImage(type, apiKeyIndex, imageData) {
-            const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
-            localStorage.setItem(key, imageData);
+            try {
+                const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
+                localStorage.setItem(key, imageData);
+            } catch (error) {
+                console.error('Lỗi khi lưu ảnh vi phạm:', error);
+                // Dọn dẹp và thử lại
+                cleanupOldImages();
+                try {
+                    const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
+                    localStorage.setItem(key, imageData);
+                } catch (retryError) {
+                    console.error('Lỗi khi lưu ảnh vi phạm sau khi dọn dẹp:', retryError);
+                }
+            }
+        }
+
+        // Clean up old images from localStorage
+        function cleanupOldImages() {
+            const now = Date.now();
+            const keysToRemove = [];
+            
+            // Duyệt qua tất cả các key trong localStorage
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                
+                // Kiểm tra nếu key là ảnh tạm hoặc ảnh vi phạm
+                if (key && (key.startsWith('temp_') || key.startsWith('violation_'))) {
+                    try {
+                        // Lấy timestamp từ key
+                        const timestamp = parseInt(key.split('_').pop());
+                        
+                        // Xóa ảnh cũ hơn 15 giây (đối với ảnh tạm) hoặc 5 phút (đối với ảnh vi phạm)
+                        const isTemp = key.startsWith('temp_');
+                        const maxAge = isTemp ? 15000 : 300000; // 15 giây hoặc 5 phút
+                        
+                        if (now - timestamp > maxAge) {
+                            keysToRemove.push(key);
+                        }
+                    } catch (e) {
+                        // Nếu không thể phân tích timestamp, xóa key
+                        keysToRemove.push(key);
+                    }
+                }
+            }
+            
+            // Xóa các key đã chọn
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+            });
+            
+            console.log(`Đã dọn dẹp ${keysToRemove.length} ảnh cũ`);
+        }
+
+        // Start cleanup task
+        function startCleanupTask() {
+            cleanupTimer = setInterval(cleanupOldImages, CLEANUP_INTERVAL);
+        }
+
+        // Stop cleanup task
+        function stopCleanupTask() {
+            if (cleanupTimer) {
+                clearInterval(cleanupTimer);
+                cleanupTimer = null;
+            }
         }
 
         // Analyze image using Gemini API
@@ -1544,28 +1621,20 @@
             }
         }
 
-        // Load questions from exam data - ĐÃ SỬA LỖI
+        // Load questions from exam data - FIXED VERSION
         function loadQuestions() {
             questionsContainer.innerHTML = '';
             
-            if (!currentExam || !currentExam.items) {
-                questionsContainer.innerHTML = '<div class="text-center p-4 text-red-500">Không có câu hỏi nào trong đề thi</div>';
+            if (!currentExam.items || currentExam.items.length === 0) {
+                questionsContainer.innerHTML = '<div class="text-center p-8 text-gray-500">Không có câu hỏi nào trong đề thi</div>';
                 return;
             }
             
             let questionIndex = 0;
             
             currentExam.items.forEach((item, index) => {
-                // Skip materials (only show questions)
+                // Bỏ qua các mục là tư liệu (materials)
                 if (item.type === 'material') {
-                    // Add material as a reference block
-                    const materialEl = document.createElement('div');
-                    materialEl.className = 'material-block';
-                    materialEl.innerHTML = `
-                        <h4 class="font-medium text-blue-700 mb-2">Tư liệu tham khảo:</h4>
-                        <div class="text-gray-700 whitespace-pre-line">${item.content}</div>
-                    `;
-                    questionsContainer.appendChild(materialEl);
                     return;
                 }
                 
@@ -1622,6 +1691,22 @@
                 questionsContainer.appendChild(questionEl);
             });
             
+            // Hiển thị tư liệu nếu có
+            const materials = currentExam.items.filter(item => item.type === 'material');
+            if (materials.length > 0) {
+                const materialsContainer = document.createElement('div');
+                materialsContainer.className = 'bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6';
+                materialsContainer.innerHTML = `
+                    <h3 class="text-lg font-medium text-blue-800 mb-2">Tư liệu tham khảo</h3>
+                    ${materials.map((material, i) => `
+                        <div class="mb-3 p-3 bg-white rounded border">
+                            <p class="text-gray-700 whitespace-pre-line">${material.content}</p>
+                        </div>
+                    `).join('')}
+                `;
+                questionsContainer.insertBefore(materialsContainer, questionsContainer.firstChild);
+            }
+            
             examInfoSection.classList.add('hidden');
             examQuestionsSection.classList.remove('hidden');
         }
@@ -1661,6 +1746,7 @@
         // Stop anti-cheat monitoring immediately
         function stopAntiCheatMonitoring() {
             stopAllScans();
+            stopCleanupTask();
             
             if (recognition) {
                 recognition.stop();
@@ -1700,6 +1786,9 @@
                     tempImages.screen[i] = null;
                 }
             }
+            
+            // Dọn dẹp tất cả ảnh cũ
+            cleanupOldImages();
         }
 
         // Stop camera and microphone
@@ -1712,26 +1801,19 @@
             videoContainer.classList.add('hidden');
         }
 
-        // Submit exam
+        // Submit exam - FIXED VERSION
         async function submitExam() {
             clearInterval(examTimer);
             
             const answers = [];
             const formData = new FormData(examForm);
             
-            // Chỉ lấy câu trả lời cho các câu hỏi (bỏ qua materials)
-            let questionCount = 0;
-            currentExam.items.forEach((item, index) => {
-                if (item.type !== 'material') {
-                    const answer = formData.get(`q${index}`);
-                    answers.push({
-                        answer: answer || '',
-                        manualScore: item.type === 'essay' ? null : 0
-                    });
-                    questionCount++;
-                } else {
-                    answers.push(null); // Giữ index cho materials nhưng đặt là null
-                }
+            currentExam.questions.forEach((question, index) => {
+                const answer = formData.get(`q${index}`);
+                answers.push({
+                    answer: answer || '',
+                    manualScore: question.type === 'essay' ? null : 0
+                });
             });
             
             const timeTaken = currentExam.time * 60 - timeLeft;
