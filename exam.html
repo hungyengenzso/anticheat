@@ -598,8 +598,8 @@
         let timeLeft = 0;
         let examStartTime = null;
         let cameraStream = null;
-        let qrScannerActive = false;
         let qrStream = null;
+        let qrScannerActive = false;
         let violationCount = 0;
         let studentPhoto = null;
         let isExamSubmitted = false;
@@ -629,11 +629,14 @@
         let apiKeyStats = [];
         let lastDetectionResult = null;
         
-        // Temporary image storage
+        // Temporary image storage with auto-cleanup
         let tempImages = {
             camera: Array(API_KEYS.length).fill(null),
             screen: Array(API_KEYS.length).fill(null)
         };
+        
+        // Image cleanup timers
+        let imageCleanupTimers = [];
         
         // Violation tracking
         const VIOLATION_TYPES = {
@@ -660,8 +663,67 @@
         
         const VIOLATION_COOLDOWN = 4000;
         const SCREENSHARE_CHECK_DELAY = 3000; // 3 giây
-        const CLEANUP_INTERVAL = 15000; // Dọn dẹp mỗi 15 giây
-        let cleanupTimer = null;
+        const IMAGE_CLEANUP_DELAY = 15000; // 15 giây
+
+        // Initialize: Clean up old images on startup
+        function initializeStorageCleanup() {
+            // Clean up old temporary images on startup
+            cleanupOldImages();
+            
+            // Set up periodic cleanup every 30 seconds
+            setInterval(cleanupOldImages, 30000);
+        }
+        
+        // Clean up old images from localStorage
+        function cleanupOldImages() {
+            const now = Date.now();
+            const keysToRemove = [];
+            
+            // Iterate through all localStorage keys
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                
+                // Check if key is a temporary or violation image
+                if (key && (key.startsWith('temp_') || key.startsWith('violation_'))) {
+                    try {
+                        // Extract timestamp from key (format: type_apiIndex_timestamp)
+                        const parts = key.split('_');
+                        if (parts.length >= 3) {
+                            const timestamp = parseInt(parts[parts.length - 1]);
+                            
+                            // Remove images older than 5 minutes (300000 ms)
+                            if (!isNaN(timestamp) && now - timestamp > 300000) {
+                                keysToRemove.push(key);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error parsing key:', key, e);
+                    }
+                }
+            }
+            
+            // Remove old images
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log('Removed old image:', key);
+            });
+            
+            if (keysToRemove.length > 0) {
+                console.log(`Cleaned up ${keysToRemove.length} old images`);
+            }
+        }
+        
+        // Schedule image cleanup after a delay
+        function scheduleImageCleanup(key, delay = IMAGE_CLEANUP_DELAY) {
+            const timer = setTimeout(() => {
+                if (localStorage.getItem(key)) {
+                    localStorage.removeItem(key);
+                    console.log('Auto-removed temporary image:', key);
+                }
+            }, delay);
+            
+            imageCleanupTimers.push(timer);
+        }
 
         // Check auth state
         auth.onAuthStateChanged(user => {
@@ -669,6 +731,8 @@
                 window.location.href = 'login.html';
             } else {
                 updateMenuForLoggedInUser();
+                // Initialize storage cleanup when user is authenticated
+                initializeStorageCleanup();
             }
         });
 
@@ -1171,7 +1235,6 @@
                 initSpeechRecognition();
                 
                 startAutoScan();
-                startCleanupTask();
                 
                 enterFullscreen();
                 
@@ -1197,23 +1260,41 @@
             return canvas.toDataURL('image/jpeg', 0.9);
         }
 
-        // Save temporary image to local storage
+        // Save temporary image to local storage with auto-cleanup
         function saveTempImage(type, apiKeyIndex, imageData) {
             try {
                 const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
                 localStorage.setItem(key, imageData);
                 tempImages[type][apiKeyIndex] = key;
+                
+                // Schedule cleanup after 15 seconds
+                scheduleImageCleanup(key);
+                
+                return key;
             } catch (error) {
-                console.error('Lỗi khi lưu ảnh tạm:', error);
-                // Nếu lỗi, dọn dẹp và thử lại
-                cleanupOldImages();
-                try {
-                    const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
-                    localStorage.setItem(key, imageData);
-                    tempImages[type][apiKeyIndex] = key;
-                } catch (retryError) {
-                    console.error('Lỗi khi lưu ảnh tạm sau khi dọn dẹp:', retryError);
+                console.error('Error saving temporary image:', error);
+                
+                // If storage is full, try to clean up and retry
+                if (error.name === 'QuotaExceededError') {
+                    console.log('Storage full, cleaning up old images...');
+                    cleanupOldImages();
+                    
+                    // Try again after cleanup
+                    try {
+                        const key = `temp_${type}_${apiKeyIndex}_${Date.now()}`;
+                        localStorage.setItem(key, imageData);
+                        tempImages[type][apiKeyIndex] = key;
+                        
+                        // Schedule cleanup after 15 seconds
+                        scheduleImageCleanup(key);
+                        
+                        return key;
+                    } catch (retryError) {
+                        console.error('Still unable to save image after cleanup:', retryError);
+                        return null;
+                    }
                 }
+                return null;
             }
         }
         
@@ -1221,8 +1302,12 @@
         function removeTempImage(type, apiKeyIndex) {
             const key = tempImages[type][apiKeyIndex];
             if (key) {
-                localStorage.removeItem(key);
-                tempImages[type][apiKeyIndex] = null;
+                try {
+                    localStorage.removeItem(key);
+                    tempImages[type][apiKeyIndex] = null;
+                } catch (error) {
+                    console.error('Error removing temporary image:', error);
+                }
             }
         }
         
@@ -1231,66 +1316,34 @@
             try {
                 const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
                 localStorage.setItem(key, imageData);
-            } catch (error) {
-                console.error('Lỗi khi lưu ảnh vi phạm:', error);
-                // Dọn dẹp và thử lại
-                cleanupOldImages();
-                try {
-                    const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
-                    localStorage.setItem(key, imageData);
-                } catch (retryError) {
-                    console.error('Lỗi khi lưu ảnh vi phạm sau khi dọn dẹp:', retryError);
-                }
-            }
-        }
-
-        // Clean up old images from localStorage
-        function cleanupOldImages() {
-            const now = Date.now();
-            const keysToRemove = [];
-            
-            // Duyệt qua tất cả các key trong localStorage
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
                 
-                // Kiểm tra nếu key là ảnh tạm hoặc ảnh vi phạm
-                if (key && (key.startsWith('temp_') || key.startsWith('violation_'))) {
+                // Schedule cleanup after 5 minutes for violation images
+                scheduleImageCleanup(key, 300000);
+                
+                return key;
+            } catch (error) {
+                console.error('Error saving violation image:', error);
+                
+                // If storage is full, try to clean up and retry
+                if (error.name === 'QuotaExceededError') {
+                    console.log('Storage full, cleaning up old images...');
+                    cleanupOldImages();
+                    
+                    // Try again after cleanup
                     try {
-                        // Lấy timestamp từ key
-                        const timestamp = parseInt(key.split('_').pop());
+                        const key = `violation_${type}_${apiKeyIndex}_${Date.now()}`;
+                        localStorage.setItem(key, imageData);
                         
-                        // Xóa ảnh cũ hơn 15 giây (đối với ảnh tạm) hoặc 5 phút (đối với ảnh vi phạm)
-                        const isTemp = key.startsWith('temp_');
-                        const maxAge = isTemp ? 15000 : 300000; // 15 giây hoặc 5 phút
+                        // Schedule cleanup after 5 minutes for violation images
+                        scheduleImageCleanup(key, 300000);
                         
-                        if (now - timestamp > maxAge) {
-                            keysToRemove.push(key);
-                        }
-                    } catch (e) {
-                        // Nếu không thể phân tích timestamp, xóa key
-                        keysToRemove.push(key);
+                        return key;
+                    } catch (retryError) {
+                        console.error('Still unable to save violation image after cleanup:', retryError);
+                        return null;
                     }
                 }
-            }
-            
-            // Xóa các key đã chọn
-            keysToRemove.forEach(key => {
-                localStorage.removeItem(key);
-            });
-            
-            console.log(`Đã dọn dẹp ${keysToRemove.length} ảnh cũ`);
-        }
-
-        // Start cleanup task
-        function startCleanupTask() {
-            cleanupTimer = setInterval(cleanupOldImages, CLEANUP_INTERVAL);
-        }
-
-        // Stop cleanup task
-        function stopCleanupTask() {
-            if (cleanupTimer) {
-                clearInterval(cleanupTimer);
-                cleanupTimer = null;
+                return null;
             }
         }
 
@@ -1313,7 +1366,12 @@
             const imageData = captureImage();
             
             // Lưu ảnh tạm vào local storage
-            saveTempImage('camera', apiKeyIndex, imageData);
+            const tempKey = saveTempImage('camera', apiKeyIndex, imageData);
+            
+            if (!tempKey) {
+                console.error('Failed to save temporary image, skipping analysis');
+                return null;
+            }
             
             const requestData = {
                 contents: [{
@@ -1484,6 +1542,7 @@
         // Stop all scanning
         function stopAllScans() {
             apiKeyTimers.forEach(timer => clearInterval(timer));
+            imageCleanupTimers.forEach(timer => clearTimeout(timer));
         }
 
         // Fast screenshot capture
@@ -1746,7 +1805,6 @@
         // Stop anti-cheat monitoring immediately
         function stopAntiCheatMonitoring() {
             stopAllScans();
-            stopCleanupTask();
             
             if (recognition) {
                 recognition.stop();
@@ -1786,9 +1844,6 @@
                     tempImages.screen[i] = null;
                 }
             }
-            
-            // Dọn dẹp tất cả ảnh cũ
-            cleanupOldImages();
         }
 
         // Stop camera and microphone
@@ -1808,11 +1863,14 @@
             const answers = [];
             const formData = new FormData(examForm);
             
-            currentExam.questions.forEach((question, index) => {
+            currentExam.items.forEach((item, index) => {
+                // Skip materials
+                if (item.type === 'material') return;
+                
                 const answer = formData.get(`q${index}`);
                 answers.push({
                     answer: answer || '',
-                    manualScore: question.type === 'essay' ? null : 0
+                    manualScore: item.type === 'essay' ? null : 0
                 });
             });
             
