@@ -116,6 +116,70 @@
             border-color: #4f46e5;
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
         }
+        
+        /* Key input styling */
+        .key-input {
+            border: 2px solid #fbbf24;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+            animation: glow 2s infinite alternate;
+            background-color: #fffbeb;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+        
+        @keyframes glow {
+            from {
+                box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+            }
+            to {
+                box-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 30px rgba(251, 191, 36, 0.6);
+            }
+        }
+        
+        .key-info {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 0.875rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .key-info::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            width: 30px;
+            height: 30px;
+            background: #f59e0b;
+            border-radius: 50%;
+            opacity: 0.2;
+        }
+        
+        .key-info::after {
+            content: '';
+            position: absolute;
+            bottom: -15px;
+            left: -15px;
+            width: 40px;
+            height: 40px;
+            background: #f59e0b;
+            border-radius: 50%;
+            opacity: 0.2;
+        }
+        
+        .key-label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .key-label i {
+            color: #f59e0b;
+        }
     </style>
 </head>
 <body>
@@ -132,13 +196,13 @@
                     </a>
                 </div>
                 <div class="hidden md:flex items-center space-x-1" id="desktop-menu">
-                    <!-- Menu sẽ được cập nhật động bằng JavaScript -->
                     <a href="home.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
                     <a href="giamthi.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
                     <a href="exam.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
                     <a href="login.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="login-link">Đăng nhập</a>
                     <a href="register.html" class="px-4 py-2 active-menu-item" id="register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="exam-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="exam-management-link">Quản lý đề thi</a>
+                    <a href="key-management.html" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="key-management-link">Quản lý Key</a>
                     <a href="#" class="px-4 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="logout-link">Đăng xuất</a>
                 </div>
                 <div class="md:hidden flex items-center">
@@ -150,13 +214,13 @@
             <!-- Mobile menu -->
             <div id="mobile-menu" class="mobile-menu md:hidden bg-white">
                 <div class="px-2 pt-2 pb-3 space-y-1" id="mobile-menu-items">
-                    <!-- Menu mobile sẽ được cập nhật động bằng JavaScript -->
                     <a href="home.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Trang chủ</a>
                     <a href="giamthi.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Giám thị AI</a>
                     <a href="exam.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition">Thi trực tuyến</a>
                     <a href="login.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-login-link">Đăng nhập</a>
                     <a href="register.html" class="block px-3 py-2 active-menu-item" id="mobile-register-link">Đăng ký</a>
-                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="exam-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-exam-management-link">Quản lý đề thi</a>
+                    <a href="key-management.html" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-key-management-link">Quản lý Key</a>
                     <a href="#" class="block px-3 py-2 text-gray-600 hover:text-indigo-600 transition hidden" id="mobile-logout-link">Đăng xuất</a>
                 </div>
             </div>
@@ -170,6 +234,12 @@
                 <div class="text-center mb-8">
                     <h1 class="text-2xl font-bold text-gray-800">Đăng ký tài khoản</h1>
                     <p class="text-gray-600 mt-2">Tạo tài khoản để lưu kết quả thi</p>
+                </div>
+                
+                <div class="key-info mb-6">
+                    <p class="font-medium text-amber-800"><i class="fas fa-exclamation-circle"></i> Để đăng ký tài khoản, bạn cần có KEY ACCOUNT hợp lệ.</p>
+                    <p class="mt-1 text-amber-700"><i class="fas fa-phone"></i> Liên hệ: <span class="font-bold">0977893086</span> để mua KEY.</p>
+                    <p class="mt-1 text-amber-700 text-xs"><i class="fas fa-info-circle"></i> Mỗi KEY chỉ có thể sử dụng một số lần nhất định</p>
                 </div>
                 
                 <form id="register-form" class="space-y-4">
@@ -193,8 +263,15 @@
                         <input type="password" id="confirm-password" required minlength="6" class="form-input">
                     </div>
                     
-                    <button type="submit" class="btn-primary w-full py-3 font-bold rounded-lg">
-                        Đăng ký
+                    <div>
+                        <label for="account-key" class="block text-sm font-medium text-gray-700 mb-1 key-label">
+                            <i class="fas fa-key"></i> KEY ACCOUNT <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" id="account-key" required class="form-input key-input" placeholder="Nhập KEY ACCOUNT của bạn">
+                    </div>
+                    
+                    <button type="submit" class="btn-primary w-full py-3 font-bold rounded-lg flex items-center justify-center gap-2">
+                        <i class="fas fa-user-plus"></i> Đăng ký
                     </button>
                     
                     <div class="text-center text-sm text-gray-600">
@@ -202,8 +279,8 @@
                     </div>
                 </form>
                 
-                <div id="error-message" class="mt-4 text-red-600 text-sm hidden"></div>
-                <div id="success-message" class="mt-4 text-green-600 text-sm hidden"></div>
+                <div id="error-message" class="mt-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm hidden"></div>
+                <div id="success-message" class="mt-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm hidden"></div>
             </div>
         </div>
     </section>
@@ -246,46 +323,100 @@
         });
 
         // Xử lý form đăng ký
-        document.getElementById('register-form').addEventListener('submit', (e) => {
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
+            const accountKey = document.getElementById('account-key').value.trim().toUpperCase();
             const errorMessage = document.getElementById('error-message');
             const successMessage = document.getElementById('success-message');
             
             errorMessage.classList.add('hidden');
             successMessage.classList.add('hidden');
             
+            // Kiểm tra mật khẩu
             if (password !== confirmPassword) {
                 errorMessage.textContent = "Mật khẩu không trùng khớp!";
                 errorMessage.classList.remove('hidden');
                 return;
             }
             
-            auth.createUserWithEmailAndPassword(email, password)
-                .then((userCredential) => {
-                    return db.collection('users').doc(userCredential.user.uid).set({
-                        name: name,
-                        email: email,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        lastLogin: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                })
-                .then(() => {
-                    successMessage.textContent = "Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập.";
-                    successMessage.classList.remove('hidden');
-                    
-                    setTimeout(() => {
-                        window.location.href = 'login.html';
-                    }, 2000);
-                })
-                .catch((error) => {
-                    errorMessage.textContent = error.message;
+            // Kiểm tra key không trống
+            if (!accountKey) {
+                errorMessage.textContent = "Vui lòng nhập KEY ACCOUNT!";
+                errorMessage.classList.remove('hidden');
+                return;
+            }
+            
+            try {
+                // Kiểm tra key hợp lệ trong Firestore
+                const keyDoc = await db.collection('accountKeys').doc(accountKey).get();
+                
+                if (!keyDoc.exists) {
+                    errorMessage.textContent = "KEY ACCOUNT không hợp lệ! Vui lòng kiểm tra lại hoặc liên hệ 0977893086 để mua KEY.";
                     errorMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                const keyData = keyDoc.data();
+                
+                // Kiểm tra key còn sử dụng được không
+                if (keyData.usedCount >= keyData.maxUses) {
+                    errorMessage.textContent = "KEY ACCOUNT đã hết số lần sử dụng! Vui lòng liên hệ 0977893086 để mua KEY mới.";
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                // Kiểm tra key còn hạn sử dụng không
+                if (keyData.expiryDate && keyData.expiryDate.toDate() < new Date()) {
+                    errorMessage.textContent = "KEY ACCOUNT đã hết hạn! Vui lòng liên hệ 0977893086 để mua KEY mới.";
+                    errorMessage.classList.remove('hidden');
+                    return;
+                }
+                
+                // Tạo tài khoản người dùng
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                
+                // Cập nhật số lần sử dụng của key
+                await db.collection('accountKeys').doc(accountKey).update({
+                    usedCount: firebase.firestore.FieldValue.increment(1),
+                    lastUsed: firebase.firestore.FieldValue.serverTimestamp(),
+                    usedBy: firebase.firestore.FieldValue.arrayUnion(userCredential.user.uid)
                 });
+                
+                // Tạo thông tin người dùng
+                await db.collection('users').doc(userCredential.user.uid).set({
+                    name: name,
+                    email: email,
+                    accountKey: accountKey,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                successMessage.textContent = "Đăng ký thành công! Bạn sẽ được chuyển đến trang đăng nhập trong 3 giây.";
+                successMessage.classList.remove('hidden');
+                
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 3000);
+                
+            } catch (error) {
+                let errorText = "Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại!";
+                
+                if (error.code === 'auth/email-already-in-use') {
+                    errorText = "Email này đã được sử dụng. Vui lòng sử dụng email khác.";
+                } else if (error.code === 'auth/weak-password') {
+                    errorText = "Mật khẩu quá yếu. Vui lòng sử dụng mật khẩu mạnh hơn.";
+                } else if (error.code === 'auth/invalid-email') {
+                    errorText = "Email không hợp lệ. Vui lòng kiểm tra lại.";
+                }
+                
+                errorMessage.textContent = errorText;
+                errorMessage.classList.remove('hidden');
+            }
         });
 
         // Theo dõi trạng thái đăng nhập
@@ -306,12 +437,14 @@
             document.getElementById('register-link').classList.add('hidden');
             document.getElementById('logout-link').classList.remove('hidden');
             document.getElementById('exam-management-link').classList.remove('hidden');
+            document.getElementById('key-management-link').classList.remove('hidden');
             
             // Ẩn đăng nhập, đăng ký và hiện đăng xuất trên mobile
             document.getElementById('mobile-login-link').classList.add('hidden');
             document.getElementById('mobile-register-link').classList.add('hidden');
             document.getElementById('mobile-logout-link').classList.remove('hidden');
             document.getElementById('mobile-exam-management-link').classList.remove('hidden');
+            document.getElementById('mobile-key-management-link').classList.remove('hidden');
             
             // Thêm sự kiện đăng xuất
             document.getElementById('logout-link').addEventListener('click', signOut);
@@ -328,12 +461,14 @@
             document.getElementById('register-link').classList.remove('hidden');
             document.getElementById('logout-link').classList.add('hidden');
             document.getElementById('exam-management-link').classList.add('hidden');
+            document.getElementById('key-management-link').classList.add('hidden');
             
             // Hiện đăng nhập, đăng ký và ẩn đăng xuất trên mobile
             document.getElementById('mobile-login-link').classList.remove('hidden');
             document.getElementById('mobile-register-link').classList.remove('hidden');
             document.getElementById('mobile-logout-link').classList.add('hidden');
             document.getElementById('mobile-exam-management-link').classList.add('hidden');
+            document.getElementById('mobile-key-management-link').classList.add('hidden');
         }
 
         // Hàm đăng xuất
